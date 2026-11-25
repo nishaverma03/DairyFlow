@@ -1,1036 +1,1948 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
-const CONTACT_EMAIL = "dairyflow123@gmail.com";
+/* =========================
+   SAMPLE DATA
+========================= */
 
-const modules = [
-  {
-    id: "milkcollection",
-    title: "Milk Collection",
-    icon: "🥛",
-    description: "Manage daily milk collection and producer entries.",
-  },
-  {
-    id: "attendance",
-    title: "Attendance",
-    icon: "📋",
-    description: "Manage attendance and daily staff records.",
-  },
-  {
-    id: "payments",
-    title: "Payments",
-    icon: "💰",
-    description: "Keep track of payment-related records.",
-  },
-  {
-    id: "reports",
-    title: "Reports",
-    icon: "📊",
-    description: "View and organize dairy management reports.",
-  },
+const TODAY_MILK_RATE = 60;
+
+const customers = [
+  { id: 1, name: "Vishesh", phone: "9876543210", milk: 1.5, rate: 50 },
+  { id: 2, name: "Amit Singh", phone: "9876543211", milk: 2, rate: 52 },
+  { id: 3, name: "Priya Devi", phone: "9876543212", milk: 1, rate: 50 },
+  { id: 4, name: "Sunita Kumari", phone: "9876543213", milk: 0.5, rate: 48 },
+  { id: 5, name: "Rakesh Yadav", phone: "9876543214", milk: 2, rate: 50 },
+  { id: 6, name: "Anjali Kumari", phone: "9876543215", milk: 1.5, rate: 52 },
+  { id: 7, name: "Pankaj Kumar", phone: "9876543216", milk: 1, rate: 50 },
+  { id: 8, name: "Neha Singh", phone: "9876543217", milk: 0.5, rate: 48 },
+  { id: 9, name: "Sanjay Kumar", phone: "9876543218", milk: 2, rate: 52 },
+  { id: 10, name: "Meena Devi", phone: "9876543219", milk: 1, rate: 50 },
+  { id: 11, name: "Vikas Singh", phone: "9876543220", milk: 1.5, rate: 50 },
+  { id: 12, name: "Kiran Kumari", phone: "9876543221", milk: 0.5, rate: 48 },
+  { id: 13, name: "Deepak Yadav", phone: "9876543222", milk: 2, rate: 52 },
+  { id: 14, name: "Pooja Devi", phone: "9876543223", milk: 1, rate: 50 },
+  { id: 15, name: "Arun Kumar", phone: "9876543224", milk: 1.5, rate: 50 },
 ];
 
-// Logo
-function DairyLogo() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-12 h-12 bg-green-600 rounded-2xl flex items-center justify-center text-2xl">
-        🥛
-      </div>
-      <span className="text-2xl font-bold text-green-700">DairyFlow</span>
-    </div>
-  );
-}
+const attendanceRecords = [
+  ["Present", "Present", "Absent", "Present", "Present"],
+  ["Present", "Absent", "Present", "Present", "Present"],
+  ["Present", "Present", "Present", "Absent", "Present"],
+  ["Absent", "Present", "Present", "Present", "Present"],
+  ["Present", "Present", "Absent", "Present", "Present"],
+  ["Present", "Present", "Present", "Present", "Absent"],
+  ["Present", "Absent", "Present", "Present", "Present"],
+  ["Present", "Present", "Absent", "Present", "Present"],
+  ["Present", "Present", "Present", "Absent", "Present"],
+  ["Absent", "Present", "Present", "Present", "Present"],
+  ["Present", "Present", "Absent", "Present", "Present"],
+  ["Present", "Absent", "Present", "Present", "Present"],
+  ["Present", "Present", "Present", "Present", "Absent"],
+  ["Present", "Present", "Absent", "Present", "Present"],
+  ["Present", "Absent", "Present", "Present", "Present"],
+];
 
-// Footer
-function Footer() {
-  return (
-    <footer className="bg-gradient-to-br from-indigo-950 via-blue-900 to-indigo-700 text-white mt-16">
-      <div className="max-w-7xl mx-auto px-6 py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-10">
-
-          {/* Brand */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center text-2xl">
-                🥛
-              </div>
-              <h2 className="text-3xl font-bold">DairyFlow</h2>
-            </div>
-
-            <p className="text-blue-200 mb-6 max-w-sm">
-              Simplifying dairy management with smarter tools for milk
-              collection, attendance, payments and reports.
-            </p>
-
-            {/* Language */}
-            <div className="mb-8">
-              <label className="block text-blue-200 mb-3">Language</label>
-
-              <select
-                className="w-full max-w-xs bg-white/10 border border-white/20 rounded-xl px-5 py-4 text-white outline-none"
-                defaultValue="English"
-              >
-                <option className="text-black" value="English">
-                  English
-                </option>
-                <option className="text-black" value="Hindi">
-                  Hindi
-                </option>
-              </select>
-            </div>
-
-            {/* Social */}
-            <h3 className="text-blue-200 mb-4">Social</h3>
-
-            <div className="flex items-center gap-5 text-2xl">
-              <a
-                href="https://x.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="X"
-                className="hover:text-green-300 transition"
-              >
-                𝕏
-              </a>
-
-              <a
-                href="https://www.instagram.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Instagram"
-                className="hover:text-green-300 transition"
-              >
-                ◎
-              </a>
-
-              <a
-                href="https://www.facebook.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Facebook"
-                className="hover:text-green-300 transition"
-              >
-                f
-              </a>
-
-              <a
-                href="https://www.youtube.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="YouTube"
-                className="hover:text-green-300 transition"
-              >
-                ▶
-              </a>
-
-              <a
-                href="https://www.linkedin.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="LinkedIn"
-                className="hover:text-green-300 transition"
-              >
-                in
-              </a>
-            </div>
-          </div>
-
-          {/* Product */}
-          <div>
-            <h3 className="text-blue-200 font-semibold mb-5">Product</h3>
-            <div className="space-y-4">
-              {modules.map((item) => (
-                <a
-                  key={item.id}
-                  href="#"
-                  className="block hover:text-green-300 transition"
-                >
-                  {item.title}
-                </a>
-              ))}
-              <a href="#" className="block hover:text-green-300 transition">
-                Dashboard
-              </a>
-            </div>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h3 className="text-blue-200 font-semibold mb-5">Company</h3>
-            <div className="space-y-4">
-              <a href="#" className="block hover:text-green-300 transition">
-                About Us
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Our Mission
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Careers
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                News
-              </a>
-            </div>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <h3 className="text-blue-200 font-semibold mb-5">Resources</h3>
-            <div className="space-y-4">
-              <a href="#" className="block hover:text-green-300 transition">
-                Help Center
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Support
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Feedback
-              </a>
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="block hover:text-green-300 transition"
-              >
-                Contact Us
-              </a>
-            </div>
-          </div>
-
-          {/* Policies */}
-          <div>
-            <h3 className="text-blue-200 font-semibold mb-5">Policies</h3>
-            <div className="space-y-4">
-              <a href="#" className="block hover:text-green-300 transition">
-                Privacy
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Terms
-              </a>
-              <a href="#" className="block hover:text-green-300 transition">
-                Guidelines
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Footer */}
-        <div className="border-t border-white/20 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-blue-200 text-sm text-center">
-            © {new Date().getFullYear()} DairyFlow. All rights reserved.
-          </p>
-
-          <p className="text-blue-200 text-sm">
-            Made with 🥛 for dairy management.
-          </p>
-        </div>
-      </div>
-    </footer>
-  );
-}
+/* =========================
+   MAIN APP
+========================= */
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(
-    () => localStorage.getItem("dairyflow_loggedIn") === "true"
+    localStorage.getItem("dairyflowLoggedIn") === "true"
   );
 
-  const [page, setPage] = useState(() =>
-    localStorage.getItem("dairyflow_loggedIn") === "true"
-      ? "home"
-      : "login"
+  const [dark, setDark] = useState(
+    localStorage.getItem("dairyflow_theme") === "dark"
   );
 
-  const [mode, setMode] = useState("signin");
+  const [page, setPage] = useState("Home");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [module, setModule] = useState("");
+  const [search, setSearch] = useState("");
+
+  const [calendarMonth, setCalendarMonth] = useState(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+
+  const [calendarAttendance, setCalendarAttendance] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("dairyflow_calendarAttendance") || "{}"
+      );
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      "dairyflow_calendarAttendance",
+      JSON.stringify(calendarAttendance)
+    );
+  }, [calendarAttendance]);
+
+  const openCalendar = (customer) => {
+    setSelectedCustomer(customer);
+    setCalendarMonth(
+      new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    );
+    setPage("ReceiverCalendar");
+    setModule("");
+  };
+
+  const dateKey = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const togglePresent = (customerId, date) => {
+    const key = dateKey(date);
+
+    setCalendarAttendance((old) => {
+      const next = { ...old };
+
+      if (next[customerId]?.[key] === "Present") {
+        next[customerId] = { ...next[customerId] };
+        delete next[customerId][key];
+      } else {
+        next[customerId] = {
+          ...(next[customerId] || {}),
+          [key]: "Present",
+        };
+      }
+
+      return next;
+    });
+  };
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [message, setMessage] = useState("");
-  const [moduleSearch, setModuleSearch] = useState("");
 
-  const [darkMode, setDarkMode] = useState(
-    () => localStorage.getItem("dairyflow_theme") === "dark"
+  /* SETTINGS STATES */
+
+  const [managerName, setManagerName] = useState(
+    localStorage.getItem("dairyflow_managerName") || "Dairy Manager"
   );
 
-  // Save login status
+  const [managerEmail, setManagerEmail] = useState(
+    localStorage.getItem("dairyflow_managerEmail") || ""
+  );
+
+  const [milkNotifications, setMilkNotifications] = useState(true);
+  const [attendanceNotifications, setAttendanceNotifications] = useState(true);
+  const [paymentNotifications, setPaymentNotifications] = useState(true);
+
+  const [defaultUnit, setDefaultUnit] = useState("Litres (L)");
+  const [currency, setCurrency] = useState("INR (₹)");
+
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  /* SAVE THEME */
+
   useEffect(() => {
-    localStorage.setItem("dairyflow_loggedIn", String(loggedIn));
+    localStorage.setItem("dairyflow_theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  /* SAVE LOGIN */
+
+  useEffect(() => {
+    localStorage.setItem("dairyflowLoggedIn", loggedIn);
   }, [loggedIn]);
 
-  // Save theme
-  useEffect(() => {
-    localStorage.setItem("dairyflow_theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
+  /* NAVIGATION */
 
-  // Browser navigation
-  useEffect(() => {
-    const handlePopState = (event) => {
-      if (!loggedIn) return;
-
-      if (event.state?.dairyflowPage) {
-        setPage(event.state.dairyflowPage);
-      } else {
-        setPage("home");
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [loggedIn]);
-
-  // Navigation
-  const navigate = (newPage) => {
-    setPage(newPage);
-
-    window.history.pushState(
-      { dairyflowPage: newPage },
-      "",
-      window.location.href
-    );
+  const goHome = () => {
+    setPage("Home");
+    setSelectedCustomer(null);
+    setModule("");
   };
 
-  // Sign In
-  const handleSignIn = (e) => {
-    e.preventDefault();
-
-    if (!email.trim() || !password.trim()) {
-      setMessage("Please enter both email and password.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setMessage("Password must contain at least 6 characters.");
-      return;
-    }
-
-    setLoggedIn(true);
-    setMessage("");
-    setPassword("");
-    setConfirmPassword("");
-    setPage("home");
-
-    window.history.replaceState(
-      { dairyflowPage: "home" },
-      "",
-      window.location.href
-    );
+  const openCustomer = (customer) => {
+    setSelectedCustomer(customer);
+    setPage("CustomerProfile");
+    setModule("");
   };
 
-  // Sign Up
-  const handleSignUp = (e) => {
-    e.preventDefault();
-
-    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      setMessage("Please fill in all fields.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setMessage("Password must contain at least 6 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setMessage("Passwords do not match.");
-      return;
-    }
-
-    setMessage("Sign up successful! Please sign in now.");
-    setMode("signin");
-    setPassword("");
-    setConfirmPassword("");
+  const openModule = (name) => {
+    setModule(name);
+    setPage("Module");
   };
 
-  // Forgot Password
-  const handleForgotPassword = (e) => {
-    e.preventDefault();
-
-    if (!email.trim()) {
-      setMessage("Please enter your email address.");
-      return;
+  const goBack = () => {
+    if (page === "Module") {
+      setPage("CustomerProfile");
+      setModule("");
+    } else if (page === "CustomerProfile") {
+      goHome();
+    } else {
+      goHome();
     }
-
-    setMessage(
-      "Password reset is a demo feature. Please contact " + CONTACT_EMAIL
-    );
   };
 
-  // Sign Out
-  const handleSignOut = () => {
-    localStorage.removeItem("dairyflow_loggedIn");
-
+  const logout = () => {
     setLoggedIn(false);
-    setPage("login");
-    setMode("signin");
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-    setMessage("");
-
-    window.history.replaceState(null, "", window.location.href);
+    setPage("Home");
+    setSelectedCustomer(null);
+    setModule("");
+    localStorage.removeItem("dairyflowLoggedIn");
   };
 
-  // Theme classes
-  const bg = darkMode ? "bg-gray-900" : "bg-gray-50";
-  const card = darkMode
-    ? "bg-gray-800 border-gray-700"
-    : "bg-white border-gray-100";
-  const heading = darkMode ? "text-white" : "text-gray-800";
-  const muted = darkMode ? "text-gray-400" : "text-gray-500";
-  const navBg = darkMode
-    ? "bg-gray-800 border-gray-700"
-    : "bg-white border-gray-100";
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(search.toLowerCase()) ||
+      customer.phone.includes(search)
+  );
 
-  // Navbar
+  const totalMilk = customers.reduce(
+    (sum, customer) => sum + customer.milk,
+    0
+  );
+
+  const totalAmount = customers.reduce(
+    (sum, customer) => sum + customer.milk * customer.rate,
+    0
+  );
+
+  const totalPresent = attendanceRecords.flat().filter(
+    (status) => status === "Present"
+  ).length;
+
+  const totalAbsent = attendanceRecords.flat().filter(
+    (status) => status === "Absent"
+  ).length;
+
+  /* THEME */
+
+  const bg = dark
+    ? "bg-gray-950 text-gray-100"
+    : "bg-green-50 text-gray-900";
+
+  const card = dark
+    ? "bg-gray-900 border-gray-700 text-gray-100"
+    : "bg-white border-green-100 text-gray-900";
+
+  const muted = dark ? "text-gray-400" : "text-gray-600";
+
+  const button = dark
+    ? "bg-gray-800 hover:bg-gray-700 text-white"
+    : "bg-green-100 hover:bg-green-200 text-green-800";
+
+  /* =========================
+     LOGIN
+  ========================= */
+
+  if (!loggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 via-white to-emerald-200 px-4 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-green-100">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto bg-green-600 text-white rounded-2xl flex items-center justify-center text-3xl mb-4">
+              🥛
+            </div>
+
+            <h1 className="text-3xl font-bold text-green-800">
+              DairyFlow
+            </h1>
+
+            <p className="text-gray-500 mt-2">
+              Smart dairy management made simple.
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+
+              if (!email.trim() || !password.trim()) {
+                alert("Please enter email and password.");
+                return;
+              }
+
+              setLoggedIn(true);
+              setPage("Home");
+            }}
+          >
+            <label className="block font-semibold text-gray-700 mb-2">
+              Email
+            </label>
+
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 mb-5 outline-none focus:ring-2 focus:ring-green-400 text-gray-800"
+            />
+
+            <label className="block font-semibold text-gray-700 mb-2">
+              Password
+            </label>
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 pr-14 outline-none focus:ring-2 focus:ring-green-400 text-gray-800"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-3 text-gray-500"
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full mt-7 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold transition"
+            >
+              Sign In
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-gray-400 mt-6">
+            © 2026 DairyFlow
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================
+     NAVBAR
+  ========================= */
+
   const Navbar = () => (
     <nav
-      className={`${navBg} shadow-sm px-6 py-4 flex flex-wrap items-center justify-between gap-4 border-b`}
+      className={`border-b ${
+        dark
+          ? "bg-gray-900 border-gray-700"
+          : "bg-white border-green-100"
+      }`}
     >
-      <DairyLogo />
-
-      <div className="flex items-center gap-5 flex-wrap">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
         <button
-          onClick={() => navigate("home")}
-          className={`hover:text-green-600 ${
-            page === "home" ? "text-green-600 font-semibold" : heading
-          }`}
+          onClick={goHome}
+          className="flex items-center gap-3"
         >
-          Home
+          <div className="bg-green-600 text-white w-10 h-10 rounded-xl flex items-center justify-center text-xl">
+            🥛
+          </div>
+
+          <span className="text-xl font-bold text-green-600">
+            DairyFlow
+          </span>
         </button>
 
-        <button
-          onClick={() => navigate("menu")}
-          className={`hover:text-green-600 ${
-            page === "menu" ? "text-green-600 font-semibold" : heading
-          }`}
-        >
-          Menu
-        </button>
+        <div className="flex items-center flex-wrap gap-2">
+          <button
+            onClick={goHome}
+            className={`px-4 py-2 rounded-lg ${button}`}
+          >
+            Home
+          </button>
 
-        <button
-          onClick={() => navigate("contact")}
-          className={`hover:text-green-600 ${
-            page === "contact" ? "text-green-600 font-semibold" : heading
-          }`}
-        >
-          Contact
-        </button>
+          <button
+            onClick={() => setPage("Administration")}
+            className={`px-4 py-2 rounded-lg ${
+              page === "Administration"
+                ? "bg-green-600 text-white"
+                : button
+            }`}
+          >
+            Administration
+          </button>
 
-        <button
-          onClick={() => navigate("settings")}
-          className={`hover:text-green-600 ${
-            page === "settings" ? "text-green-600 font-semibold" : heading
-          }`}
-        >
-          Settings
-        </button>
+          <button
+            onClick={() => setPage("Menu")}
+            className={`px-4 py-2 rounded-lg ${button}`}
+          >
+            Menu
+          </button>
 
-        <button
-          onClick={handleSignOut}
-          className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-xl"
-        >
-          Sign Out
-        </button>
+          <button
+            onClick={() => setPage("Contact")}
+            className={`px-4 py-2 rounded-lg ${button}`}
+          >
+            Contact
+          </button>
+
+          <button
+            onClick={() => setPage("Settings")}
+            className="px-4 py-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-800"
+          >
+            Settings
+          </button>
+
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     </nav>
   );
 
-  // Module Card
-  const ModuleCard = ({ item }) => (
-    <button
-      onClick={() => navigate("module:" + item.id)}
-      className={`${card} text-left p-6 rounded-2xl shadow-sm border hover:shadow-md transition w-full`}
-    >
-      <div className="text-4xl mb-4">{item.icon}</div>
+  /* =========================
+     FOOTER
+  ========================= */
 
-      <h3 className={`font-semibold text-xl mb-3 ${heading}`}>
-        {item.title}
-      </h3>
+  const Footer = () => (
+    <footer className="bg-green-950 text-white text-center py-8 px-4 mt-auto">
+      <h2 className="text-xl font-bold">
+        DairyFlow 🥛
+      </h2>
 
-      <p className={`${muted} text-sm mb-4`}>{item.description}</p>
+      <p className="text-green-200 mt-3">
+        Smart dairy management made simple.
+      </p>
 
-      <span className="text-green-600 text-sm font-medium">
-        Open module →
-      </span>
-    </button>
+      <div className="flex flex-wrap justify-center gap-6 mt-6">
+        <a href="mailto:contact@dairyflow.com" className="hover:text-green-300">
+          Email
+        </a>
+
+        <a
+          href="https://www.linkedin.com"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-green-300"
+        >
+          LinkedIn
+        </a>
+
+        <a
+          href="https://x.com"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-green-300"
+        >
+          X
+        </a>
+
+        <a
+          href="https://www.instagram.com"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-green-300"
+        >
+          Instagram
+        </a>
+      </div>
+
+      <p className="text-green-300 text-sm mt-6">
+        © 2026 DairyFlow. All rights reserved.
+      </p>
+    </footer>
   );
 
-  // Login / Signup / Forgot Password
-  if (!loggedIn) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-5">
-        <div className="bg-white w-full max-w-md rounded-3xl shadow-lg p-8">
-          <div className="flex justify-center mb-8">
-            <DairyLogo />
+  /* =========================
+     HOME
+  ========================= */
+
+  const Home = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <div className="mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold">
+          Dashboard
+        </h1>
+
+        <p className={`mt-2 ${muted}`}>
+          Manage your dairy customers and daily records.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+        <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
+          <p className={muted}>Total Milk Today</p>
+          <h2 className="text-3xl font-bold text-green-500 mt-2">
+            {totalMilk.toFixed(1)} L
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
+          <p className={muted}>Total Milk Receivers</p>
+          <h2 className="text-3xl font-bold text-blue-500 mt-2">
+            {customers.length}
+          </h2>
+        </div>
+
+        {/* UPDATED MILK PRICE CARD */}
+
+        <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
+          <p className={muted}>Today's Milk Price (1 L)</p>
+          <h2 className="text-3xl font-bold text-orange-500 mt-2">
+            ₹{TODAY_MILK_RATE}/L
+          </h2>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+        <h2 className="text-2xl font-bold">
+          Milk Receivers
+        </h2>
+
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone..."
+          className={`w-full sm:max-w-sm px-4 py-3 rounded-xl border outline-none ${
+            dark
+              ? "bg-gray-800 border-gray-700 text-white"
+              : "bg-white border-green-200 text-gray-800"
+          }`}
+        />
+      </div>
+
+      {/* RECEIVER CARDS WITH CALENDAR OUTSIDE PROFILE */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredCustomers.map((customer) => (
+          <div
+            key={customer.id}
+            className={`p-5 rounded-2xl border shadow-sm hover:shadow-lg transition ${card}`}
+          >
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => openCustomer(customer)}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left"
+              >
+                <div className="w-12 h-12 shrink-0 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-lg">
+                  {customer.name.charAt(0)}
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="font-bold text-lg truncate">
+                    {customer.name}
+                  </h3>
+
+                  <p className={`text-sm ${muted}`}>
+                    {customer.phone}
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => openCalendar(customer)}
+                title={`Open attendance calendar for ${customer.name}`}
+                aria-label={`Open attendance calendar for ${customer.name}`}
+                className="shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-green-100 hover:bg-green-200 text-green-800 border border-green-200 transition"
+              >
+                <span className="text-xl">📅</span>
+                <span className="text-[9px] font-bold">Calendar</span>
+              </button>
+            </div>
+
+            <div className="mt-5 flex justify-between items-center">
+              <div>
+                <p className={`text-sm ${muted}`}>
+                  Today's Milk
+                </p>
+
+                <p className="text-xl font-bold text-green-500">
+                  {customer.milk} L
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className={`text-sm ${muted}`}>
+                  Amount
+                </p>
+
+                <p className="text-xl font-bold">
+                  ₹{(customer.milk * customer.rate).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => openCustomer(customer)}
+              className="text-green-500 font-semibold mt-4 hover:text-green-700"
+            >
+              View Profile →
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {filteredCustomers.length === 0 && (
+        <p className={`text-center py-10 ${muted}`}>
+          No Milk Receiver found.
+        </p>
+      )}
+    </div>
+  );
+
+  /* =========================
+     ADMINISTRATION
+  ========================= */
+
+  const AdministrationPage = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <h1 className="text-3xl md:text-4xl font-bold">Administration</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        Manage and monitor your dairy operations.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8">
+        <div className={`rounded-2xl border shadow-sm p-6 ${card}`}>
+          <p className={muted}>Total Receivers</p>
+          <h2 className="text-3xl font-bold text-blue-500 mt-2">
+            {customers.length}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border shadow-sm p-6 ${card}`}>
+          <p className={muted}>Total Milk</p>
+          <h2 className="text-3xl font-bold text-green-500 mt-2">
+            {totalMilk.toFixed(1)} L
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border shadow-sm p-6 ${card}`}>
+          <p className={muted}>Estimated Payments</p>
+          <h2 className="text-3xl font-bold text-orange-500 mt-2">
+            ₹{totalAmount.toFixed(2)}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border shadow-sm p-6 ${card}`}>
+          <p className={muted}>Attendance Entries</p>
+          <h2 className="text-3xl font-bold text-purple-500 mt-2">
+            {totalPresent + totalAbsent}
+          </h2>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold mt-10 mb-5">
+        Administrative Sections
+      </h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <button
+          onClick={() => setPage("AdminReceivers")}
+          className={`text-left rounded-2xl p-6 border shadow-sm hover:shadow-lg transition ${card}`}
+        >
+          <div className="text-4xl mb-4">👥</div>
+          <h3 className="text-xl font-bold">Receiver Management</h3>
+          <p className={`mt-2 ${muted}`}>
+            View receiver details and contact information.
+          </p>
+          <p className="text-green-500 font-semibold mt-4">
+            Open Management →
+          </p>
+        </button>
+
+        <button
+          onClick={() => setPage("AdminAttendance")}
+          className={`text-left rounded-2xl p-6 border shadow-sm hover:shadow-lg transition ${card}`}
+        >
+          <div className="text-4xl mb-4">📅</div>
+          <h3 className="text-xl font-bold">Attendance Management</h3>
+          <p className={`mt-2 ${muted}`}>
+            Review Present and Absent records.
+          </p>
+          <p className="text-green-500 font-semibold mt-4">
+            View Attendance →
+          </p>
+        </button>
+
+        <button
+          onClick={() => setPage("AdminPayments")}
+          className={`text-left rounded-2xl p-6 border shadow-sm hover:shadow-lg transition ${card}`}
+        >
+          <div className="text-4xl mb-4">💰</div>
+          <h3 className="text-xl font-bold">Payment Management</h3>
+          <p className={`mt-2 ${muted}`}>
+            Review estimated milk payments.
+          </p>
+          <p className="text-green-500 font-semibold mt-4">
+            View Payments →
+          </p>
+        </button>
+
+        <button
+          onClick={() => setPage("AdminReports")}
+          className={`text-left rounded-2xl p-6 border shadow-sm hover:shadow-lg transition ${card}`}
+        >
+          <div className="text-4xl mb-4">📊</div>
+          <h3 className="text-xl font-bold">Reports</h3>
+          <p className={`mt-2 ${muted}`}>
+            View dairy summary and overall records.
+          </p>
+          <p className="text-green-500 font-semibold mt-4">
+            View Reports →
+          </p>
+        </button>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     ADMIN RECEIVERS
+  ========================= */
+
+  const AdminReceivers = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={() => setPage("Administration")}
+        className="text-green-500 font-semibold mb-6"
+      >
+        ← Back to Administration
+      </button>
+
+      <h1 className="text-3xl font-bold">Receiver Management</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        All registered Milk Receivers.
+      </p>
+
+      <div className={`mt-6 rounded-2xl border overflow-hidden ${card}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
+              <tr>
+                <th className="p-4">ID</th>
+                <th className="p-4">Name</th>
+                <th className="p-4">Phone</th>
+                <th className="p-4">Milk</th>
+                <th className="p-4">Rate</th>
+                <th className="p-4">Amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customers.map((customer) => (
+                <tr
+                  key={customer.id}
+                  className="border-t border-gray-200 dark:border-gray-700"
+                >
+                  <td className="p-4">{customer.id}</td>
+                  <td className="p-4 font-semibold">{customer.name}</td>
+                  <td className="p-4">{customer.phone}</td>
+                  <td className="p-4">{customer.milk} L</td>
+                  <td className="p-4">₹{customer.rate}</td>
+                  <td className="p-4 font-semibold">
+                    ₹{(customer.milk * customer.rate).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     ADMIN ATTENDANCE
+  ========================= */
+
+  const AdminAttendance = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={() => setPage("Administration")}
+        className="text-green-500 font-semibold mb-6"
+      >
+        ← Back to Administration
+      </button>
+
+      <h1 className="text-3xl font-bold">Attendance Management</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        Overall attendance summary for the sample records.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-8">
+        <div className={`rounded-2xl p-6 border ${card}`}>
+          <p className={muted}>Total Entries</p>
+          <h2 className="text-3xl font-bold mt-2">
+            {totalPresent + totalAbsent}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl p-6 border ${card}`}>
+          <p className={muted}>Present</p>
+          <h2 className="text-3xl font-bold text-green-500 mt-2">
+            {totalPresent}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl p-6 border ${card}`}>
+          <p className={muted}>Absent</p>
+          <h2 className="text-3xl font-bold text-red-500 mt-2">
+            {totalAbsent}
+          </h2>
+        </div>
+      </div>
+
+      <div className={`mt-8 rounded-2xl border overflow-hidden ${card}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
+              <tr>
+                <th className="p-4">Receiver</th>
+                <th className="p-4">Day 1</th>
+                <th className="p-4">Day 2</th>
+                <th className="p-4">Day 3</th>
+                <th className="p-4">Day 4</th>
+                <th className="p-4">Day 5</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customers.map((customer, index) => (
+                <tr
+                  key={customer.id}
+                  className="border-t border-gray-200 dark:border-gray-700"
+                >
+                  <td className="p-4 font-semibold">{customer.name}</td>
+
+                  {attendanceRecords[index].map((status, day) => (
+                    <td key={day} className="p-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          status === "Present"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {status}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     ADMIN PAYMENTS
+  ========================= */
+
+  const AdminPayments = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={() => setPage("Administration")}
+        className="text-green-500 font-semibold mb-6"
+      >
+        ← Back to Administration
+      </button>
+
+      <h1 className="text-3xl font-bold">Payment Management</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        Estimated milk payments for all receivers.
+      </p>
+
+      <div className={`mt-8 rounded-2xl border p-6 ${card}`}>
+        <p className={muted}>Total Estimated Amount</p>
+
+        <h2 className="text-4xl font-bold text-orange-500 mt-2">
+          ₹{totalAmount.toFixed(2)}
+        </h2>
+
+        <p className={`mt-2 ${muted}`}>
+          Calculated from sample milk quantities and rates.
+        </p>
+      </div>
+
+      <div className={`mt-8 rounded-2xl border overflow-hidden ${card}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
+              <tr>
+                <th className="p-4">Receiver</th>
+                <th className="p-4">Milk</th>
+                <th className="p-4">Rate</th>
+                <th className="p-4">Estimated Amount</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customers.map((customer) => (
+                <tr
+                  key={customer.id}
+                  className="border-t border-gray-200 dark:border-gray-700"
+                >
+                  <td className="p-4 font-semibold">{customer.name}</td>
+                  <td className="p-4">{customer.milk} L</td>
+                  <td className="p-4">₹{customer.rate}/L</td>
+                  <td className="p-4 font-bold text-orange-500">
+                    ₹{(customer.milk * customer.rate).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     ADMIN REPORTS
+  ========================= */
+
+  const AdminReports = () => (
+    <div className={`max-w-7xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={() => setPage("Administration")}
+        className="text-green-500 font-semibold mb-6"
+      >
+        ← Back to Administration
+      </button>
+
+      <h1 className="text-3xl font-bold">Dairy Reports</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        Overall summary of DairyFlow records.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8">
+        <div className={`rounded-2xl border p-6 ${card}`}>
+          <p className={muted}>Receivers</p>
+          <h2 className="text-3xl font-bold text-blue-500 mt-2">
+            {customers.length}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border p-6 ${card}`}>
+          <p className={muted}>Milk</p>
+          <h2 className="text-3xl font-bold text-green-500 mt-2">
+            {totalMilk.toFixed(1)} L
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border p-6 ${card}`}>
+          <p className={muted}>Amount</p>
+          <h2 className="text-3xl font-bold text-orange-500 mt-2">
+            ₹{totalAmount.toFixed(2)}
+          </h2>
+        </div>
+
+        <div className={`rounded-2xl border p-6 ${card}`}>
+          <p className={muted}>Present</p>
+          <h2 className="text-3xl font-bold text-green-500 mt-2">
+            {totalPresent}
+          </h2>
+        </div>
+      </div>
+
+      <div className={`rounded-2xl border p-6 mt-8 ${card}`}>
+        <h2 className="text-xl font-bold">Attendance Overview</h2>
+
+        <div className="flex flex-wrap gap-4 mt-5">
+          <span className="px-4 py-2 rounded-xl bg-green-100 text-green-700 font-semibold">
+            Present: {totalPresent}
+          </span>
+
+          <span className="px-4 py-2 rounded-xl bg-red-100 text-red-700 font-semibold">
+            Absent: {totalAbsent}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     CUSTOMER PROFILE
+  ========================= */
+
+  const CustomerProfile = () => (
+    <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={goBack}
+        className="text-green-500 font-semibold mb-6"
+      >
+        ← Back to Home
+      </button>
+
+      <div className={`rounded-2xl border p-6 md:p-8 shadow-sm ${card}`}>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-2xl font-bold">
+            {selectedCustomer.name.charAt(0)}
           </div>
 
-          <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">
-            {mode === "signin"
-              ? "Sign In"
-              : mode === "signup"
-              ? "Create Account"
-              : "Forgot Password"}
-          </h1>
+          <div className="flex-1 min-w-[180px]">
+            <h1 className="text-3xl font-bold">
+              {selectedCustomer.name}
+            </h1>
 
-          <p className="text-gray-500 text-center mb-6">
-            {mode === "signin"
-              ? "Welcome back to DairyFlow"
-              : mode === "signup"
-              ? "Create your DairyFlow account"
-              : "Reset your password"}
+            <p className={muted}>
+              {selectedCustomer.phone}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-8">
+          <div className="p-4 rounded-xl bg-green-100 text-green-900">
+            <p className="text-sm">Today's Milk</p>
+            <h2 className="text-2xl font-bold">
+              {selectedCustomer.milk} L
+            </h2>
+          </div>
+
+          <div className="p-4 rounded-xl bg-blue-100 text-blue-900">
+            <p className="text-sm">Rate</p>
+            <h2 className="text-2xl font-bold">
+              ₹{selectedCustomer.rate}/L
+            </h2>
+          </div>
+
+          <div className="p-4 rounded-xl bg-orange-100 text-orange-900">
+            <p className="text-sm">Today's Amount</p>
+            <h2 className="text-2xl font-bold">
+              ₹{(selectedCustomer.milk * selectedCustomer.rate).toFixed(2)}
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold mt-8 mb-5">
+        Management Modules
+      </h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {["Milk Collection", "Attendance", "Payments", "Reports"].map(
+          (name, index) => (
+            <button
+              key={name}
+              onClick={() => openModule(name)}
+              className={`p-6 rounded-2xl border shadow-sm hover:shadow-md transition text-left ${card}`}
+            >
+              <div className="text-3xl mb-3">
+                {["🥛", "📅", "💰", "📊"][index]}
+              </div>
+
+              <h3 className="text-xl font-bold">{name}</h3>
+
+              <p className={`mt-2 ${muted}`}>
+                Open {name} details →
+              </p>
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  );
+
+  /* =========================
+     RECEIVER ATTENDANCE CALENDAR
+  ========================= */
+
+  const ReceiverCalendar = () => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const receiverRecords = calendarAttendance[selectedCustomer.id] || {};
+
+    let presentCount = 0;
+    let absentCount = 0;
+    let unmarkedCount = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      const key = dateKey(d);
+
+      if (receiverRecords[key] === "Present") presentCount++;
+      else if (d < today) absentCount++;
+      else unmarkedCount++;
+    }
+
+    const cells = [];
+
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let day = 1; day <= daysInMonth; day++) cells.push(day);
+
+    return (
+      <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
+        <button
+          onClick={() => setPage("Home")}
+          className="text-green-500 font-semibold mb-6"
+        >
+          ← Back to Milk Receivers
+        </button>
+
+        <div className={`rounded-2xl border p-5 md:p-8 ${card}`}>
+          <div className="flex flex-wrap justify-between items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {selectedCustomer.name}
+              </h1>
+
+              <p className={muted}>Attendance Calendar</p>
+            </div>
+
+            <div className="flex gap-2 items-center flex-wrap">
+              <button
+                onClick={() =>
+                  setCalendarMonth(new Date(year, month - 1, 1))
+                }
+                className={`px-3 py-2 rounded-lg ${button}`}
+              >
+                ← Previous
+              </button>
+
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <h2 className="font-bold text-center">
+                  {calendarMonth.toLocaleString("en-IN", {
+                    month: "long",
+                  })}
+                </h2>
+
+                <select
+                  value={year}
+                  onChange={(e) =>
+                    setCalendarMonth(
+                      new Date(Number(e.target.value), month, 1)
+                    )
+                  }
+                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 font-semibold"
+                  aria-label="Select calendar year"
+                >
+                  {Array.from({ length: 101 }, (_, i) => 2000 + i).map(
+                    (yearOption) => (
+                      <option key={yearOption} value={yearOption}>
+                        {yearOption}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              <button
+                onClick={() =>
+                  setCalendarMonth(new Date(year, month + 1, 1))
+                }
+                className={`px-3 py-2 rounded-lg ${button}`}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
+            <div className="rounded-xl bg-green-100 text-green-800 p-4">
+              <p>Present</p>
+              <h3 className="text-2xl font-bold">{presentCount}</h3>
+            </div>
+
+            <div className="rounded-xl bg-red-100 text-red-800 p-4">
+              <p>Absent</p>
+              <h3 className="text-2xl font-bold">{absentCount}</h3>
+            </div>
+
+            <div className="rounded-xl bg-gray-100 text-gray-700 p-4">
+              <p>Not marked / Future</p>
+              <h3 className="text-2xl font-bold">{unmarkedCount}</h3>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+              (day) => (
+                <div
+                  key={day}
+                  className={`py-2 font-semibold text-xs sm:text-sm ${muted}`}
+                >
+                  {day}
+                </div>
+              )
+            )}
+
+            {cells.map((day, index) => {
+              if (!day) {
+                return (
+                  <div
+                    key={`blank-${index}`}
+                    className="min-h-[48px] sm:min-h-[72px]"
+                  />
+                );
+              }
+
+              const d = new Date(year, month, day);
+              const key = dateKey(d);
+              const isPresent = receiverRecords[key] === "Present";
+              const isPast = d < today;
+              const isFuture = d > today;
+
+              const status = isPresent
+                ? "Present"
+                : isPast
+                ? "Absent"
+                : "Not marked";
+
+              const style = isPresent
+                ? "bg-green-500 text-white border-green-600"
+                : isPast
+                ? "bg-red-100 text-red-700 border-red-200"
+                : "bg-gray-100 text-gray-500 border-gray-200";
+
+              return (
+                <button
+                  key={key}
+                  disabled={isFuture}
+                  onClick={() => togglePresent(selectedCustomer.id, d)}
+                  title={
+                    isFuture
+                      ? "Future date"
+                      : isPresent
+                      ? "Click to unmark Present"
+                      : "Mark Present"
+                  }
+                  className={`min-h-[52px] sm:min-h-[76px] rounded-xl border flex flex-col items-center justify-center gap-1 ${style} ${
+                    isFuture
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:ring-2 hover:ring-green-400 cursor-pointer"
+                  }`}
+                >
+                  <span className="font-bold text-base sm:text-lg">
+                    {day}
+                  </span>
+
+                  <span className="text-[10px] sm:text-xs font-semibold">
+                    {status}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap gap-3 mt-6 text-sm">
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-green-500 inline-block" />
+              Present
+            </span>
+
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-red-100 border border-red-200 inline-block" />
+              Absent (past unmarked)
+            </span>
+
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
+              Today / future
+            </span>
+          </div>
+
+          <p className={`mt-4 text-sm ${muted}`}>
+            Click a past or current date to mark Present. If a past date
+            is left unmarked, it automatically shows Absent. Future dates
+            cannot be marked.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  /* =========================
+     MODULE PAGE
+  ========================= */
+
+  const ModulePage = () => {
+    const records = attendanceRecords[selectedCustomer.id - 1];
+
+    return (
+      <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
+        <button
+          onClick={goBack}
+          className="text-green-500 font-semibold mb-6"
+        >
+          ← Back to Profile
+        </button>
+
+        <div className={`rounded-2xl border p-6 md:p-8 shadow-sm ${card}`}>
+          <h1 className="text-3xl font-bold">{module}</h1>
+
+          <p className={`mt-2 ${muted}`}>
+            {selectedCustomer.name} • {selectedCustomer.phone}
           </p>
 
-          <form
-            onSubmit={
-              mode === "signin"
-                ? handleSignIn
-                : mode === "signup"
-                ? handleSignUp
-                : handleForgotPassword
-            }
-            className="space-y-5"
+          {module === "Milk Collection" && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">
+                Today's Milk Collection
+              </h2>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
+                    <tr>
+                      <th className="p-3">Milk</th>
+                      <th className="p-3">Rate</th>
+                      <th className="p-3">Amount</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <tr>
+                      <td className="p-3">{selectedCustomer.milk} L</td>
+                      <td className="p-3">₹{selectedCustomer.rate}/L</td>
+                      <td className="p-3 font-bold">
+                        ₹{(selectedCustomer.milk * selectedCustomer.rate).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {module === "Attendance" && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">
+                Attendance Records
+              </h2>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
+                    <tr>
+                      <th className="p-3">Day</th>
+                      <th className="p-3">Status</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {records.map((status, i) => (
+                      <tr
+                        key={i}
+                        className="border-b border-gray-200 dark:border-gray-700"
+                      >
+                        <td className="p-3">Day {i + 1}</td>
+
+                        <td className="p-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              status === "Present"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {module === "Payments" && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">
+                Payment Summary
+              </h2>
+
+              <div className="p-5 bg-green-100 text-green-900 rounded-xl">
+                <p>Total Milk</p>
+
+                <h2 className="text-2xl font-bold mt-2">
+                  {selectedCustomer.milk} L
+                </h2>
+
+                <p className="mt-4">Rate per litre</p>
+
+                <h2 className="text-xl font-bold">
+                  ₹{selectedCustomer.rate}
+                </h2>
+
+                <p className="mt-4">Total Amount</p>
+
+                <h2 className="text-3xl font-bold">
+                  ₹{(selectedCustomer.milk * selectedCustomer.rate).toFixed(2)}
+                </h2>
+              </div>
+            </div>
+          )}
+
+          {module === "Reports" && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">
+                Receiver Report
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5 bg-blue-100 text-blue-900 rounded-xl">
+                  <p>Today's Milk</p>
+
+                  <h2 className="text-2xl font-bold mt-2">
+                    {selectedCustomer.milk} L
+                  </h2>
+                </div>
+
+                <div className="p-5 bg-orange-100 text-orange-900 rounded-xl">
+                  <p>Today's Amount</p>
+
+                  <h2 className="text-2xl font-bold mt-2">
+                    ₹{(selectedCustomer.milk * selectedCustomer.rate).toFixed(2)}
+                  </h2>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-bold mt-6">
+                Attendance Summary
+              </h3>
+
+              <div className="flex flex-wrap gap-4 mt-4">
+                <span className="bg-green-100 text-green-700 px-4 py-2 rounded-xl">
+                  Present: {records.filter((r) => r === "Present").length}
+                </span>
+
+                <span className="bg-red-100 text-red-700 px-4 py-2 rounded-xl">
+                  Absent: {records.filter((r) => r === "Absent").length}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /* =========================
+     MENU
+  ========================= */
+
+  const MenuPage = () => (
+    <div className={`max-w-6xl mx-auto px-4 py-8 ${bg}`}>
+      <h1 className="text-3xl font-bold">DairyFlow Menu</h1>
+
+      <p className={`mt-2 ${muted}`}>
+        Access your dairy management modules.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
+        {[
+          { name: "Milk Collection", icon: "🥛" },
+          { name: "Attendance", icon: "📅" },
+          { name: "Payments", icon: "💰" },
+          { name: "Reports", icon: "📊" },
+        ].map((item) => (
+          <button
+            key={item.name}
+            onClick={() => {
+              setSelectedCustomer(customers[0]);
+              setModule(item.name);
+              setPage("Module");
+            }}
+            className={`p-6 border rounded-2xl text-left shadow-sm hover:shadow-lg transition ${card}`}
           >
+            <span className="text-4xl">{item.icon}</span>
+
+            <h2 className="text-xl font-bold mt-4">{item.name}</h2>
+
+            <p className={`mt-2 ${muted}`}>
+              View and manage {item.name.toLowerCase()}.
+            </p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  /* =========================
+     SETTINGS
+  ========================= */
+
+  const SettingsPage = () => (
+    <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={goHome}
+        className="mb-6 text-green-500 font-semibold hover:text-green-700"
+      >
+        ← Back to Home
+      </button>
+
+      <div className={`rounded-2xl p-6 md:p-8 shadow-md border ${card}`}>
+        <h1 className="text-3xl font-bold mb-2">Settings</h1>
+
+        <p className={`mb-8 ${muted}`}>
+          Customize and manage your DairyFlow application.
+        </p>
+
+        {/* APPEARANCE */}
+
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">🎨 Appearance</h2>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+              <p className="font-semibold">Theme</p>
+
+              <p className={`text-sm mt-1 ${muted}`}>
+                Switch between light and dark mode.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setDark(!dark)}
+              className={`px-6 py-3 rounded-xl font-semibold ${
+                dark
+                  ? "bg-yellow-400 text-gray-900 hover:bg-yellow-300"
+                  : "bg-green-100 text-green-800 hover:bg-green-200"
+              }`}
+            >
+              {dark ? "☀️ Light Theme" : "🌙 Dark Theme"}
+            </button>
+          </div>
+
+          <p className="mt-3 text-sm">
+            Current theme:{" "}
+            <span className="font-bold text-green-500">
+              {dark ? "Dark Mode" : "Light Mode"}
+            </span>
+          </p>
+        </section>
+
+        <hr className="my-8 border-gray-300 dark:border-gray-700" />
+
+        {/* PROFILE */}
+
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">👤 Manager Profile</h2>
+
+          <p className={`text-sm mb-5 ${muted}`}>
+            Update your manager information.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block font-semibold mb-2">
+                Manager Name
+              </label>
+
+              <input
+                type="text"
+                value={managerName}
+                onChange={(e) => {
+                  setManagerName(e.target.value);
+                  setProfileSaved(false);
+                }}
+                className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-green-400 ${
+                  dark
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-white border-green-200 text-gray-800"
+                }`}
+                placeholder="Enter manager name"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold mb-2">
+                Manager Email
               </label>
 
               <input
                 type="email"
-                required
-                value={email}
+                value={managerEmail}
                 onChange={(e) => {
-                  setEmail(e.target.value);
-                  setMessage("");
+                  setManagerEmail(e.target.value);
+                  setProfileSaved(false);
                 }}
-                placeholder="Enter your email"
-                className="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-green-400 ${
+                  dark
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-white border-green-200 text-gray-800"
+                }`}
+                placeholder="Enter manager email"
               />
             </div>
+          </div>
 
-            {mode !== "forgot" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
+          <button
+            onClick={() => {
+              localStorage.setItem("dairyflow_managerName", managerName);
+              localStorage.setItem("dairyflow_managerEmail", managerEmail);
+              setProfileSaved(true);
+            }}
+            className="mt-5 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold"
+          >
+            Save Profile
+          </button>
 
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setMessage("");
-                    }}
-                    placeholder="Minimum 6 characters"
-                    className="w-full border border-gray-300 rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-gray-500"
-                  >
-                    {showPassword ? "🙈" : "👁️"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {mode === "signup" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm Password
-                </label>
-
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      setMessage("");
-                    }}
-                    placeholder="Confirm your password"
-                    className="w-full border border-gray-300 rounded-xl p-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowConfirmPassword(!showConfirmPassword)
-                    }
-                    className="absolute right-3 top-3 text-gray-500"
-                  >
-                    {showConfirmPassword ? "🙈" : "👁️"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {message && (
-              <p className="text-sm text-center text-red-600 break-words">
-                {message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition"
-            >
-              {mode === "signin"
-                ? "Sign In"
-                : mode === "signup"
-                ? "Sign Up"
-                : "Reset Password"}
-            </button>
-          </form>
-
-          {mode === "signin" && (
-            <div className="mt-5 flex justify-between text-sm">
-              <button
-                onClick={() => {
-                  setMode("forgot");
-                  setMessage("");
-                }}
-                className="text-green-600 hover:underline"
-              >
-                Forgot Password?
-              </button>
-
-              <button
-                onClick={() => {
-                  setMode("signup");
-                  setMessage("");
-                }}
-                className="text-green-600 hover:underline"
-              >
-                Create Account
-              </button>
-            </div>
+          {profileSaved && (
+            <p className="text-green-500 font-semibold mt-3">
+              ✓ Profile saved successfully!
+            </p>
           )}
+        </section>
 
-          {mode !== "signin" && (
-            <button
-              onClick={() => {
-                setMode("signin");
-                setMessage("");
-              }}
-              className="block mx-auto mt-5 text-green-600 hover:underline text-sm"
-            >
-              ← Back to Sign In
-            </button>
-          )}
+        <hr className="my-8 border-gray-300 dark:border-gray-700" />
 
-          <div className="text-center text-gray-500 text-sm mt-8">
-            Contact: {CONTACT_EMAIL}
-          </div>
-        </div>
-      </div>
-    );
-  }
+        {/* NOTIFICATIONS */}
 
-  // Home Page
-  if (page === "home") {
-    return (
-      <div className={`min-h-screen ${bg}`}>
-        <Navbar />
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">🔔 Notifications</h2>
 
-        <main className="max-w-6xl mx-auto p-6 md:p-10">
-          <div className="mb-8">
-            <h1 className={`text-3xl font-bold ${heading}`}>
-              Welcome to DairyFlow 🥛
-            </h1>
-
-            <p className={`${muted} mt-2`}>
-              Manage your dairy operations efficiently.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {modules
-              .filter((item) =>
-                ["milkcollection", "attendance", "reports"].includes(item.id)
-              )
-              .map((item) => (
-                <ModuleCard key={item.id} item={item} />
-              ))}
-          </div>
-
-          {/* Quick Access */}
-          <div className={`${card} mt-8 p-6 rounded-2xl shadow-sm border`}>
-            <h2 className={`text-xl font-semibold mb-3 ${heading}`}>
-              Quick Access
-            </h2>
-
-            <p className={`${muted} mb-4`}>
-              Explore all available dairy management modules.
-            </p>
-
-            <button
-              onClick={() => navigate("menu")}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl"
-            >
-              Explore Management Menu →
-            </button>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    );
-  }
-
-  // Management Menu
-  if (page === "menu") {
-    const filteredModules = modules.filter((item) =>
-      item.title.toLowerCase().includes(moduleSearch.toLowerCase())
-    );
-
-    return (
-      <div className={`min-h-screen ${bg}`}>
-        <Navbar />
-
-        <main className="max-w-6xl mx-auto p-6 md:p-10">
-          <div className="mb-8">
-            <h1 className={`text-3xl font-bold ${heading}`}>
-              Management Hub
-            </h1>
-
-            <p className={`${muted} mt-2`}>
-              All your dairy management tools in one place.
-            </p>
-          </div>
-
-          {/* Search */}
-          <div className={`${card} border rounded-2xl p-5 shadow-sm mb-8`}>
-            <label className={`block font-medium mb-3 ${heading}`}>
-              🔎 Find a Module
-            </label>
-
-            <input
-              type="text"
-              value={moduleSearch}
-              onChange={(e) => setModuleSearch(e.target.value)}
-              placeholder="Search Milk Collection, Attendance..."
-              className={`w-full border rounded-xl p-3 outline-none focus:ring-2 focus:ring-green-500 ${
-                darkMode
-                  ? "bg-gray-700 text-white border-gray-600 placeholder-gray-400"
-                  : "bg-white text-gray-800 border-gray-300"
-              }`}
-            />
-          </div>
-
-          {/* Quick Actions */}
-          <h2 className={`text-xl font-semibold mb-4 ${heading}`}>
-            Quick Actions
-          </h2>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-            {modules.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => navigate("module:" + item.id)}
-                className="bg-green-600 hover:bg-green-700 text-white p-5 rounded-2xl text-left transition shadow-sm"
-              >
-                <div className="text-3xl mb-3">{item.icon}</div>
-                <div className="font-semibold">{item.title}</div>
-                <div className="text-sm opacity-90 mt-2">Open now →</div>
-              </button>
-            ))}
-          </div>
-
-          {/* All Modules */}
-          <div className="flex items-center justify-between mb-5 gap-4">
-            <h2 className={`text-xl font-semibold ${heading}`}>
-              All Modules
-            </h2>
-
-            <span className={`text-sm ${muted}`}>
-              {filteredModules.length} modules
-            </span>
-          </div>
-
-          {filteredModules.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredModules.map((item) => (
-                <ModuleCard key={item.id} item={item} />
-              ))}
-            </div>
-          ) : (
-            <div className={`${card} border rounded-2xl p-8 text-center`}>
-              <div className="text-4xl mb-3">🔍</div>
-              <h3 className={`font-semibold ${heading}`}>No modules found</h3>
-              <p className={muted}>Try searching with a different name.</p>
-            </div>
-          )}
-        </main>
-
-        <Footer />
-      </div>
-    );
-  }
-
-  // Module Pages
-  if (page.startsWith("module:")) {
-    const moduleId = page.replace("module:", "");
-    const currentModule = modules.find((item) => item.id === moduleId);
-
-    return (
-      <div className={`min-h-screen ${bg}`}>
-        <Navbar />
-
-        <main className="max-w-6xl mx-auto p-6 md:p-10">
-          <div className={`${card} border rounded-2xl p-8 shadow-sm`}>
-            <button
-              onClick={() => navigate("menu")}
-              className="text-green-600 hover:text-green-700 mb-6"
-            >
-              ← Back to Menu
-            </button>
-
-            <div className="text-5xl mb-4">{currentModule?.icon}</div>
-
-            <h1 className={`text-3xl font-bold mb-4 ${heading}`}>
-              {currentModule?.title || "Module"}
-            </h1>
-
-            <p className={muted}>{currentModule?.description}</p>
-
-            <div className={`${card} rounded-xl p-5 mt-6 border`}>
-              <p className={muted}>
-                This module is ready for the next development step.
-              </p>
-            </div>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    );
-  }
-
-  // Contact Page
-  if (page === "contact") {
-    return (
-      <div className={`min-h-screen ${bg}`}>
-        <Navbar />
-
-        <main className="max-w-6xl mx-auto p-6 md:p-10">
-          <div className={`${card} border rounded-2xl p-8 shadow-sm`}>
-            <h1 className={`text-3xl font-bold mb-4 ${heading}`}>
-              Help & Contact
-            </h1>
-
-            <p className={`${muted} mb-8`}>
-              Connect with DairyFlow or reach us for assistance.
-            </p>
-
-            {/* Email */}
-            <div className="bg-green-600 text-white rounded-2xl p-6 mb-6">
-              <div className="text-3xl mb-3">📧</div>
-
-              <h2 className="font-semibold text-lg mb-2">Email Us</h2>
-
-              <p className="mb-3 text-green-100">
-                For inquiries, support or feedback.
-              </p>
-
-              <a
-                href={`mailto:${CONTACT_EMAIL}`}
-                className="underline font-medium break-all"
-              >
-                {CONTACT_EMAIL}
-              </a>
-            </div>
-
-            {/* Social Media */}
-            <h2 className={`text-xl font-semibold mb-5 ${heading}`}>
-              Follow DairyFlow
-            </h2>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* LinkedIn */}
-              <a
-                href="https://www.linkedin.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${card} border rounded-2xl p-6 shadow-sm hover:shadow-md transition`}
-              >
-                <div className="text-4xl mb-4">💼</div>
-
-                <h3 className={`font-semibold text-lg ${heading}`}>
-                  LinkedIn
-                </h3>
-
-                <p className={`${muted} mt-2`}>
-                  Connect with us professionally.
-                </p>
-
-                <span className="text-blue-600 mt-4 inline-block font-medium">
-                  Visit LinkedIn →
-                </span>
-              </a>
-
-              {/* X */}
-              <a
-                href="https://x.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${card} border rounded-2xl p-6 shadow-sm hover:shadow-md transition`}
-              >
-                <div className="text-4xl mb-4">𝕏</div>
-
-                <h3 className={`font-semibold text-lg ${heading}`}>
-                  X / Twitter
-                </h3>
-
-                <p className={`${muted} mt-2`}>
-                  Stay updated with our latest news.
-                </p>
-
-                <span className="text-gray-500 mt-4 inline-block font-medium">
-                  Visit X →
-                </span>
-              </a>
-
-              {/* Instagram */}
-              <a
-                href="https://www.instagram.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`${card} border rounded-2xl p-6 shadow-sm hover:shadow-md transition`}
-              >
-                <div className="text-4xl mb-4">📸</div>
-
-                <h3 className={`font-semibold text-lg ${heading}`}>
-                  Instagram
-                </h3>
-
-                <p className={`${muted} mt-2`}>
-                  Explore our updates and posts.
-                </p>
-
-                <span className="text-pink-600 mt-4 inline-block font-medium">
-                  Visit Instagram →
-                </span>
-              </a>
-            </div>
-          </div>
-        </main>
-
-        <Footer />
-      </div>
-    );
-  }
-
-  // Settings Page
-  if (page === "settings") {
-    return (
-      <div className={`min-h-screen ${bg}`}>
-        <Navbar />
-
-        <main className="max-w-6xl mx-auto p-6 md:p-10">
-          <h1 className={`text-3xl font-bold mb-2 ${heading}`}>
-            Settings ⚙️
-          </h1>
-
-          <p className={`${muted} mb-8`}>
-            Customize your DairyFlow application.
+          <p className={`text-sm mb-5 ${muted}`}>
+            Manage notification preferences.
           </p>
 
-          {/* Appearance */}
-          <div className={`${card} border rounded-2xl p-6 shadow-sm`}>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="text-4xl">{darkMode ? "🌙" : "☀️"}</div>
-
+          {[
+            {
+              label: "Milk Collection Notifications",
+              description: "Notifications about milk collection records.",
+              value: milkNotifications,
+              setter: setMilkNotifications,
+            },
+            {
+              label: "Attendance Notifications",
+              description: "Notifications about attendance records.",
+              value: attendanceNotifications,
+              setter: setAttendanceNotifications,
+            },
+            {
+              label: "Payment Notifications",
+              description: "Notifications about payment records.",
+              value: paymentNotifications,
+              setter: setPaymentNotifications,
+            },
+          ].map((item, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between gap-4 py-4 border-b border-gray-200 dark:border-gray-700"
+            >
               <div>
-                <h2 className={`text-xl font-semibold ${heading}`}>
-                  Appearance
-                </h2>
+                <p className="font-semibold">{item.label}</p>
 
-                <p className={muted}>Choose light or dark theme.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-5">
-              <div>
-                <h3 className={`font-medium ${heading}`}>
-                  {darkMode ? "Dark Mode" : "Light Mode"}
-                </h3>
-
-                <p className={`text-sm ${muted}`}>
-                  {darkMode
-                    ? "Dark theme is currently enabled."
-                    : "Light theme is currently enabled."}
+                <p className={`text-sm mt-1 ${muted}`}>
+                  {item.description}
                 </p>
               </div>
 
               <button
-                onClick={() => setDarkMode(!darkMode)}
-                className={`px-6 py-3 rounded-xl font-medium transition ${
-                  darkMode
-                    ? "bg-yellow-400 text-gray-900 hover:bg-yellow-300"
-                    : "bg-gray-900 text-white hover:bg-gray-700"
+                type="button"
+                onClick={() => item.setter(!item.value)}
+                className={`w-14 h-8 rounded-full flex items-center px-1 transition ${
+                  item.value ? "bg-green-500" : "bg-gray-400"
                 }`}
               >
-                {darkMode ? "☀️ Switch to Light" : "🌙 Switch to Dark"}
+                <span
+                  className={`w-6 h-6 bg-white rounded-full transition-transform ${
+                    item.value ? "translate-x-6" : "translate-x-0"
+                  }`}
+                />
               </button>
             </div>
-          </div>
+          ))}
+        </section>
 
-          {/* Application Information */}
-          <div className={`${card} border rounded-2xl p-6 shadow-sm mt-6`}>
-            <h2 className={`text-xl font-semibold mb-5 ${heading}`}>
-              Application Information
-            </h2>
+        <hr className="my-8 border-gray-300 dark:border-gray-700" />
 
-            <div className="space-y-4">
-              <div className="flex justify-between gap-4">
-                <span className={muted}>Application</span>
-                <span className={heading}>DairyFlow</span>
-              </div>
+        {/* PREFERENCES */}
 
-              <div className="flex justify-between gap-4">
-                <span className={muted}>Version</span>
-                <span className={heading}>1.0</span>
-              </div>
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">⚙️ Preferences</h2>
 
-              <div className="flex justify-between gap-4">
-                <span className={muted}>Modules</span>
-                <span className={heading}>4</span>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="font-semibold block mb-2">
+                Default Milk Unit
+              </label>
+
+              <select
+                value={defaultUnit}
+                onChange={(e) => setDefaultUnit(e.target.value)}
+                className={`w-full px-4 py-3 rounded-xl border ${
+                  dark
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-white border-green-200 text-gray-800"
+                }`}
+              >
+                <option>Litres (L)</option>
+                <option>Millilitres (ml)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-2">Currency</label>
+
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className={`w-full px-4 py-3 rounded-xl border ${
+                  dark
+                    ? "bg-gray-800 border-gray-700 text-white"
+                    : "bg-white border-green-200 text-gray-800"
+                }`}
+              >
+                <option>INR (₹)</option>
+                <option>USD ($)</option>
+                <option>EUR (€)</option>
+              </select>
             </div>
           </div>
 
-          {/* Support */}
-          <div className={`${card} border rounded-2xl p-6 shadow-sm mt-6`}>
-            <h2 className={`text-xl font-semibold mb-3 ${heading}`}>
-              Support
-            </h2>
+          <button
+            onClick={() => {
+              alert(
+                "Preferences selected. These are currently display preferences for the demo app."
+              );
+            }}
+            className="mt-5 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold"
+          >
+            Save Preferences
+          </button>
+        </section>
 
-            <p className={muted}>{CONTACT_EMAIL}</p>
+        <hr className="my-8 border-gray-300 dark:border-gray-700" />
 
-            <a
-              href={`mailto:${CONTACT_EMAIL}`}
-              className="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl"
+        {/* DATA & PRIVACY */}
+
+        <section className="mb-8">
+          <h2 className="text-xl font-bold mb-4">🔒 Data & Privacy</h2>
+
+          <div
+            className={`rounded-xl p-5 border ${
+              dark
+                ? "border-gray-700 bg-gray-800"
+                : "border-green-100 bg-green-50"
+            }`}
+          >
+            <h3 className="font-semibold">Reset Settings</h3>
+
+            <p className={`text-sm mt-2 ${muted}`}>
+              Restore theme, profile and notification preferences to their
+              default values.
+            </p>
+
+            <button
+              onClick={() => {
+                const confirmed = window.confirm(
+                  "Reset all settings to their default values?"
+                );
+
+                if (confirmed) {
+                  setDark(false);
+                  setManagerName("Dairy Manager");
+                  setManagerEmail("");
+                  setMilkNotifications(true);
+                  setAttendanceNotifications(true);
+                  setPaymentNotifications(true);
+                  setDefaultUnit("Litres (L)");
+                  setCurrency("INR (₹)");
+                  setProfileSaved(false);
+
+                  localStorage.removeItem("dairyflow_theme");
+                  localStorage.removeItem("dairyflow_managerName");
+                  localStorage.removeItem("dairyflow_managerEmail");
+
+                  alert("Settings have been reset.");
+                }
+              }}
+              className="mt-4 px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold"
             >
-              Contact Support
-            </a>
+              Reset Settings
+            </button>
           </div>
-        </main>
 
-        <Footer />
+          <div
+            className={`rounded-xl p-5 border mt-5 ${
+              dark
+                ? "border-gray-700 bg-gray-800"
+                : "border-red-100 bg-red-50"
+            }`}
+          >
+            <h3 className="font-semibold">Sign Out</h3>
+
+            <p className={`text-sm mt-2 ${muted}`}>
+              Sign out of your current DairyFlow session.
+            </p>
+
+            <button
+              onClick={() => {
+                const confirmed = window.confirm(
+                  "Are you sure you want to sign out?"
+                );
+
+                if (confirmed) logout();
+              }}
+              className="mt-4 px-5 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold"
+            >
+              Sign Out
+            </button>
+          </div>
+        </section>
+
+        <hr className="my-8 border-gray-300 dark:border-gray-700" />
+
+        {/* ABOUT */}
+
+        <section>
+          <h2 className="text-xl font-bold mb-4">ℹ️ About DairyFlow</h2>
+
+          <div className={`rounded-xl p-5 ${dark ? "bg-gray-800" : "bg-green-50"}`}>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-green-600 text-white flex items-center justify-center text-2xl">
+                🥛
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold">DairyFlow</h3>
+
+                <p className={`text-sm ${muted}`}>Version 1.0.0</p>
+              </div>
+            </div>
+
+            <p className={`mt-5 ${muted}`}>
+              DairyFlow is a dairy management application designed to
+              organize receiver information, milk collection, attendance,
+              payment records and reports.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="px-3 py-2 rounded-lg bg-green-100 text-green-800 text-sm">
+                Milk Management
+              </span>
+
+              <span className="px-3 py-2 rounded-lg bg-blue-100 text-blue-800 text-sm">
+                Attendance
+              </span>
+
+              <span className="px-3 py-2 rounded-lg bg-orange-100 text-orange-800 text-sm">
+                Payments
+              </span>
+
+              <span className="px-3 py-2 rounded-lg bg-purple-100 text-purple-800 text-sm">
+                Reports
+              </span>
+            </div>
+          </div>
+        </section>
       </div>
-    );
-  }
+    </div>
+  );
 
-  return null;
+  /* =========================
+     CONTACT
+  ========================= */
+
+  const ContactPage = () => (
+    <div className={`max-w-4xl mx-auto px-4 py-8 ${bg}`}>
+      <button
+        onClick={goHome}
+        className="mb-6 text-green-500 font-semibold"
+      >
+        ← Back to Home
+      </button>
+
+      <div className={`rounded-2xl border shadow-sm p-6 md:p-8 ${card}`}>
+        <h1 className="text-3xl font-bold">Contact Us</h1>
+
+        <p className={`mt-3 ${muted}`}>
+          Connect with DairyFlow through our contact channels.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-8">
+          <a
+            href="mailto:contact@dairyflow.com"
+            className={`p-5 rounded-xl border ${card} hover:shadow-md transition`}
+          >
+            <h2 className="font-bold text-lg">📧 Email</h2>
+            <p className="text-green-500 mt-2">contact@dairyflow.com</p>
+          </a>
+
+          <a
+            href="https://www.linkedin.com"
+            target="_blank"
+            rel="noreferrer"
+            className={`p-5 rounded-xl border ${card} hover:shadow-md transition`}
+          >
+            <h2 className="font-bold text-lg">💼 LinkedIn</h2>
+            <p className="text-green-500 mt-2">Visit LinkedIn</p>
+          </a>
+
+          <a
+            href="https://x.com"
+            target="_blank"
+            rel="noreferrer"
+            className={`p-5 rounded-xl border ${card} hover:shadow-md transition`}
+          >
+            <h2 className="font-bold text-lg">𝕏 X / Twitter</h2>
+            <p className="text-green-500 mt-2">Visit X</p>
+          </a>
+
+          <a
+            href="https://www.instagram.com"
+            target="_blank"
+            rel="noreferrer"
+            className={`p-5 rounded-xl border ${card} hover:shadow-md transition`}
+          >
+            <h2 className="font-bold text-lg">📸 Instagram</h2>
+            <p className="text-green-500 mt-2">Visit Instagram</p>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* =========================
+     APP DISPLAY
+  ========================= */
+
+  return (
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${bg}`}>
+      <Navbar />
+
+      <main className="flex-1">
+        {page === "Home" && <Home />}
+
+        {page === "Administration" && <AdministrationPage />}
+
+        {page === "AdminReceivers" && <AdminReceivers />}
+
+        {page === "AdminAttendance" && <AdminAttendance />}
+
+        {page === "AdminPayments" && <AdminPayments />}
+
+        {page === "AdminReports" && <AdminReports />}
+
+        {page === "Menu" && <MenuPage />}
+
+        {page === "Settings" && <SettingsPage />}
+
+        {page === "Contact" && <ContactPage />}
+
+        {page === "CustomerProfile" && selectedCustomer && (
+          <CustomerProfile />
+        )}
+
+        {page === "ReceiverCalendar" && selectedCustomer && (
+          <ReceiverCalendar />
+        )}
+
+        {page === "Module" && selectedCustomer && (
+          <ModulePage />
+        )}
+      </main>
+
+      <Footer />
+    </div>
+  );
 }
