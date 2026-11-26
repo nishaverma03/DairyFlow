@@ -7,7 +7,7 @@ import React, { useState, useEffect } from "react";
 
 const TODAY_MILK_RATE = 60;
 
-const customers = [
+const sampleCustomers = [
   { id: 1, name: "Vishesh", phone: "9876543210", milk: 1.5, rate: 50 },
   { id: 2, name: "Amit Singh", phone: "9876543211", milk: 2, rate: 52 },
   { id: 3, name: "Priya Devi", phone: "9876543212", milk: 1, rate: 50 },
@@ -60,6 +60,29 @@ export default function App() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [module, setModule] = useState("");
   const [search, setSearch] = useState("");
+  const [todayMilkRate, setTodayMilkRate] = useState(() => {
+    const savedRate = Number(localStorage.getItem("dairyflow_todayMilkRate"));
+    return Number.isFinite(savedRate) && savedRate >= 0
+      && localStorage.getItem("dairyflow_todayMilkRate") !== null
+      ? savedRate
+      : TODAY_MILK_RATE;
+  });
+  const [isEditingMilkRate, setIsEditingMilkRate] = useState(false);
+  const [milkRateInput, setMilkRateInput] = useState(() => {
+    const savedRate = localStorage.getItem("dairyflow_todayMilkRate");
+    return savedRate !== null ? savedRate : String(TODAY_MILK_RATE);
+  });
+  const [customers, setCustomers] = useState(() => {
+    try {
+      const saved = localStorage.getItem("dairyflow_customers");
+      return saved ? JSON.parse(saved) : sampleCustomers;
+    } catch {
+      return sampleCustomers;
+    }
+  });
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerMilk, setNewCustomerMilk] = useState("1");
 
   const [calendarMonth, setCalendarMonth] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -74,6 +97,88 @@ export default function App() {
       return {};
     }
   });
+
+  useEffect(() => {
+    localStorage.setItem("dairyflow_customers", JSON.stringify(customers));
+  }, [customers]);
+
+  useEffect(() => {
+    localStorage.setItem("dairyflow_todayMilkRate", String(todayMilkRate));
+  }, [todayMilkRate]);
+
+  const saveTodayMilkRate = (event) => {
+    event.preventDefault();
+    const nextRate = Number(milkRateInput);
+    if (!Number.isFinite(nextRate) || nextRate < 0 || milkRateInput.trim() === "") {
+      alert("Please enter a valid non-negative milk price.");
+      return;
+    }
+    setTodayMilkRate(nextRate);
+    setMilkRateInput(String(nextRate));
+    setIsEditingMilkRate(false);
+  };
+
+  const addCustomer = (event) => {
+    event.preventDefault();
+    const name = newCustomerName.trim();
+    const phone = newCustomerPhone.trim();
+
+    if (!name || !phone) {
+      alert("Please enter the customer name and phone number.");
+      return;
+    }
+    if (!/^\d{10}$/.test(phone)) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    if (customers.some((customer) => customer.phone === phone)) {
+      alert("A customer with this phone number already exists.");
+      return;
+    }
+
+    const milk = Number(newCustomerMilk);
+    const rate = todayMilkRate;
+    if (!Number.isFinite(milk) || milk <= 0) {
+      alert("Please enter a valid milk quantity greater than 0.");
+      return;
+    }
+
+    const nextId = Math.max(0, ...customers.map((customer) => customer.id)) + 1;
+    setCustomers((current) => [
+      ...current,
+      { id: nextId, name, phone, milk, rate },
+    ]);
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setNewCustomerMilk("1");
+  };
+
+  const removeCustomer = (customerId) => {
+    const customer = customers.find((item) => item.id === customerId);
+    if (!customer) return;
+    if (!window.confirm(`Remove ${customer.name} from Milk Receivers?`)) return;
+
+    setCustomers((current) => current.filter((item) => item.id !== customerId));
+    setCalendarAttendance((current) => {
+      const next = { ...current };
+      delete next[customerId];
+      return next;
+    });
+    if (selectedCustomer?.id === customerId) {
+      setSelectedCustomer(null);
+      setPage("Home");
+      setModule("");
+    }
+  };
+
+  const getAttendanceRecords = (customerId) => {
+    const originalIndex = sampleCustomers.findIndex(
+      (customer) => customer.id === customerId
+    );
+    return originalIndex >= 0
+      ? attendanceRecords[originalIndex]
+      : ["Absent", "Absent", "Absent", "Absent", "Absent"];
+  };
 
   useEffect(() => {
     localStorage.setItem(
@@ -104,14 +209,22 @@ export default function App() {
     setCalendarAttendance((old) => {
       const next = { ...old };
 
-      if (next[customerId]?.[key] === "Present") {
-        next[customerId] = { ...next[customerId] };
-        delete next[customerId][key];
+      const currentStatus = next[customerId]?.[key];
+
+      // Cycle: Unmarked -> Present -> Absent -> Unmarked
+      next[customerId] = { ...(next[customerId] || {}) };
+
+      if (!currentStatus) {
+        next[customerId][key] = "Present";
+      } else if (currentStatus === "Present") {
+        next[customerId][key] = "Absent";
       } else {
-        next[customerId] = {
-          ...(next[customerId] || {}),
-          [key]: "Present",
-        };
+        delete next[customerId][key];
+      }
+
+      // Keep the customer entry tidy when every date is unmarked.
+      if (Object.keys(next[customerId]).length === 0) {
+        delete next[customerId];
       }
 
       return next;
@@ -330,7 +443,7 @@ export default function App() {
           : "bg-white border-green-100"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         <button
           onClick={goHome}
           className="flex items-center gap-3"
@@ -344,17 +457,17 @@ export default function App() {
           </span>
         </button>
 
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:items-center sm:flex-wrap gap-2 w-full sm:w-auto">
           <button
             onClick={goHome}
-            className={`px-4 py-2 rounded-lg ${button}`}
+            className={`w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap rounded-lg ${button}`}
           >
             Home
           </button>
 
           <button
             onClick={() => setPage("Administration")}
-            className={`px-4 py-2 rounded-lg ${
+            className={`w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap rounded-lg ${
               page === "Administration"
                 ? "bg-green-600 text-white"
                 : button
@@ -364,29 +477,22 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setPage("Menu")}
-            className={`px-4 py-2 rounded-lg ${button}`}
-          >
-            Menu
-          </button>
-
-          <button
             onClick={() => setPage("Contact")}
-            className={`px-4 py-2 rounded-lg ${button}`}
+            className={`w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap rounded-lg ${button}`}
           >
             Contact
           </button>
 
           <button
             onClick={() => setPage("Settings")}
-            className="px-4 py-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-800"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap rounded-lg bg-green-100 hover:bg-green-200 text-green-800"
           >
             Settings
           </button>
 
           <button
             onClick={logout}
-            className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base whitespace-nowrap rounded-lg bg-red-500 hover:bg-red-600 text-white"
           >
             Sign Out
           </button>
@@ -400,51 +506,25 @@ export default function App() {
   ========================= */
 
   const Footer = () => (
-    <footer className="bg-green-950 text-white text-center py-8 px-4 mt-auto">
-      <h2 className="text-xl font-bold">
-        DairyFlow 🥛
-      </h2>
+    <footer className="bg-green-950 text-white text-center py-9 px-4 mt-auto">
+      <div className="max-w-3xl mx-auto">
+        <h2 className="text-2xl font-bold">DairyFlow 🥛</h2>
 
-      <p className="text-green-200 mt-3">
-        Smart dairy management made simple.
-      </p>
+        <h3 className="mt-5 font-semibold text-green-100">About DairyFlow</h3>
+        <p className="text-green-200 mt-2 text-sm sm:text-base">
+          A simpler way to manage your dairy business. DairyFlow brings customer
+          details, daily milk records, milk prices and payments together, helping
+          keep everyday work clear and organised.
+        </p>
 
-      <div className="flex flex-wrap justify-center gap-6 mt-6">
-        <a href="mailto:contact@dairyflow.com" className="hover:text-green-300">
-          Email
-        </a>
+        <p className="text-green-100 text-sm mt-6">
+          Made by <span className="font-semibold text-white">Amitash, Abhishek and Nisha</span>.
+        </p>
 
-        <a
-          href="https://www.linkedin.com"
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-green-300"
-        >
-          LinkedIn
-        </a>
-
-        <a
-          href="https://x.com"
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-green-300"
-        >
-          X
-        </a>
-
-        <a
-          href="https://www.instagram.com"
-          target="_blank"
-          rel="noreferrer"
-          className="hover:text-green-300"
-        >
-          Instagram
-        </a>
+        <p className="text-green-300 text-xs sm:text-sm mt-3">
+          © 2026 DairyFlow. All rights reserved.
+        </p>
       </div>
-
-      <p className="text-green-300 text-sm mt-6">
-        © 2026 DairyFlow. All rights reserved.
-      </p>
     </footer>
   );
 
@@ -464,7 +544,7 @@ export default function App() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
           <p className={muted}>Total Milk Today</p>
           <h2 className="text-3xl font-bold text-green-500 mt-2">
@@ -479,13 +559,88 @@ export default function App() {
           </h2>
         </div>
 
+        {/* QUICK ACTIONS: PEOPLE */}
+        <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-green-700">
+              PEOPLE
+            </p>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 text-2xl" aria-hidden="true">👥</span>
+          </div>
+          <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-green-800">
+            People
+          </h2>
+          <p className={`mt-1 text-sm leading-relaxed ${muted}`}>
+            Add or remove people who get milk.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPage("AdminReceivers")}
+              title="Add a person"
+              aria-label="Add a person"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-green-600 text-3xl font-bold leading-none text-white shadow-sm transition hover:scale-105 hover:bg-green-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage("AdminReceivers")}
+              title="Remove a person"
+              aria-label="Remove a person"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-3xl font-bold leading-none text-red-700 transition hover:scale-105 hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+          </div>
+        </div>
+
         {/* UPDATED MILK PRICE CARD */}
 
         <div className={`rounded-2xl p-6 border shadow-sm ${card}`}>
           <p className={muted}>Today's Milk Price (1 L)</p>
-          <h2 className="text-3xl font-bold text-orange-500 mt-2">
-            ₹{TODAY_MILK_RATE}/L
-          </h2>
+          {isEditingMilkRate ? (
+            <form onSubmit={saveTodayMilkRate} className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={milkRateInput}
+                  onChange={(event) => setMilkRateInput(event.target.value)}
+                  aria-label="Today's milk price per litre"
+                  className="w-28 px-3 py-2 rounded-lg border border-orange-200 bg-white text-gray-900"
+                  autoFocus
+                  required
+                />
+                <span className="font-semibold">/L</span>
+              </div>
+              <button type="submit" className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">
+                Save Price
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMilkRateInput(String(todayMilkRate)); setIsEditingMilkRate(false); }}
+                className={`px-3 py-2 rounded-lg text-sm font-semibold ${button}`}
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <h2 className="text-3xl font-bold text-orange-500">
+                ₹{todayMilkRate.toFixed(2).replace(/\.00$/, "")}/L
+              </h2>
+              <button
+                type="button"
+                onClick={() => { setMilkRateInput(String(todayMilkRate)); setIsEditingMilkRate(true); }}
+                className="px-3 py-2 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 text-sm font-semibold"
+              >
+                ✏️ Edit Price
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -495,8 +650,10 @@ export default function App() {
         </h2>
 
         <input
+          type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          autoComplete="off"
           placeholder="Search by name or phone..."
           className={`w-full sm:max-w-sm px-4 py-3 rounded-xl border outline-none ${
             dark
@@ -704,13 +861,92 @@ export default function App() {
         ← Back to Administration
       </button>
 
-      <h1 className="text-3xl font-bold">Receiver Management</h1>
+      <h1 className="text-3xl font-bold">People</h1>
 
       <p className={`mt-2 ${muted}`}>
-        All registered Milk Receivers.
+        Add someone new to your milk receiver list or remove a person who no longer receives milk.
       </p>
 
-      <div className={`mt-6 rounded-2xl border overflow-hidden ${card}`}>
+      <form
+        onSubmit={addCustomer}
+        className={`mt-6 rounded-2xl border p-5 md:p-6 ${card}`}
+      >
+        <h2 className="text-xl font-bold mb-4">＋ Add a Person</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold mb-2">Customer Name</label>
+            <input
+              value={newCustomerName}
+              onChange={(event) => setNewCustomerName(event.target.value)}
+              placeholder="Enter customer name"
+              autoComplete="name"
+              className="w-full px-4 py-3 rounded-xl border border-green-200 bg-white text-gray-900"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2">Phone Number</label>
+            <input
+              value={newCustomerPhone}
+              onChange={(event) => setNewCustomerPhone(event.target.value.replace(/\\D/g, ""))}
+              placeholder="10-digit phone number"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={10}
+              pattern="[0-9]{10}"
+              className="w-full px-4 py-3 rounded-xl border border-green-200 bg-white text-gray-900"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-2">Daily Milk (L)</label>
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={newCustomerMilk}
+              onChange={(event) => setNewCustomerMilk(event.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-green-200 bg-white text-gray-900"
+              required
+            />
+          </div>
+        </div>
+
+        <div className={`mt-5 rounded-xl border p-4 ${
+          dark ? "border-green-900 bg-gray-800" : "border-green-100 bg-green-50"
+        }`}>
+          <p className="text-sm font-semibold text-green-700">Today's milk price (automatic)</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-2xl font-bold text-green-700">
+                ₹{todayMilkRate.toFixed(2).replace(/\\.00$/, "")} <span className="text-sm font-semibold">per litre</span>
+              </p>
+              <p className={`mt-1 text-sm ${muted}`}>
+                This price is taken from the Home page. No need to enter it again.
+              </p>
+            </div>
+            <div className="rounded-lg bg-white px-4 py-3 text-right shadow-sm">
+              <p className="text-xs text-gray-500">Estimated amount</p>
+              <p className="text-xl font-bold text-gray-900">
+                ₹{((Number(newCustomerMilk) > 0 ? Number(newCustomerMilk) : 0) * todayMilkRate).toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </div>
+        <button
+          type="submit"
+          className="mt-5 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
+        >
+          + Add Person
+        </button>
+      </form>
+
+      <div className="mt-8 mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-bold">− Remove a Person</h2>
+        <p className={`text-sm ${muted}`}>Your list updates as soon as you add or remove someone.</p>
+      </div>
+
+      <div className={`rounded-2xl border overflow-hidden ${card}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className={dark ? "bg-gray-800" : "bg-green-100"}>
@@ -719,8 +955,9 @@ export default function App() {
                 <th className="p-4">Name</th>
                 <th className="p-4">Phone</th>
                 <th className="p-4">Milk</th>
-                <th className="p-4">Rate</th>
+                <th className="p-4">Rate (₹/L)</th>
                 <th className="p-4">Amount</th>
+                <th className="p-4">Action</th>
               </tr>
             </thead>
 
@@ -737,6 +974,14 @@ export default function App() {
                   <td className="p-4">₹{customer.rate}</td>
                   <td className="p-4 font-semibold">
                     ₹{(customer.milk * customer.rate).toFixed(2)}
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => removeCustomer(customer.id)}
+                      className="px-3 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold"
+                    >
+                      − Remove
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -811,7 +1056,7 @@ export default function App() {
                 >
                   <td className="p-4 font-semibold">{customer.name}</td>
 
-                  {attendanceRecords[index].map((status, day) => (
+                  {getAttendanceRecords(customer.id).map((status, day) => (
                     <td key={day} className="p-4">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -871,7 +1116,7 @@ export default function App() {
               <tr>
                 <th className="p-4">Receiver</th>
                 <th className="p-4">Milk</th>
-                <th className="p-4">Rate</th>
+                <th className="p-4">Rate (₹/L)</th>
                 <th className="p-4">Estimated Amount</th>
               </tr>
             </thead>
@@ -1068,7 +1313,7 @@ export default function App() {
       const key = dateKey(d);
 
       if (receiverRecords[key] === "Present") presentCount++;
-      else if (d < today) absentCount++;
+      else if (receiverRecords[key] === "Absent") absentCount++;
       else unmarkedCount++;
     }
 
@@ -1076,9 +1321,10 @@ export default function App() {
 
     for (let i = 0; i < firstDay; i++) cells.push(null);
     for (let day = 1; day <= daysInMonth; day++) cells.push(day);
+    while (cells.length % 7 !== 0) cells.push(null);
 
     return (
-      <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
+      <div className={`w-full max-w-5xl mx-auto px-3 sm:px-4 py-5 sm:py-8 ${bg}`}>
         <button
           onClick={() => setPage("Home")}
           className="text-green-500 font-semibold mb-6"
@@ -1087,7 +1333,7 @@ export default function App() {
         </button>
 
         <div className={`rounded-2xl border p-5 md:p-8 ${card}`}>
-          <div className="flex flex-wrap justify-between items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">
                 {selectedCustomer.name}
@@ -1096,22 +1342,31 @@ export default function App() {
               <p className={muted}>Attendance Calendar</p>
             </div>
 
-            <div className="flex gap-2 items-center flex-wrap">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center w-full lg:w-auto">
               <button
                 onClick={() =>
                   setCalendarMonth(new Date(year, month - 1, 1))
                 }
-                className={`px-3 py-2 rounded-lg ${button}`}
+                className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap ${button}`}
               >
                 ← Previous
               </button>
 
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <h2 className="font-bold text-center">
-                  {calendarMonth.toLocaleString("en-IN", {
-                    month: "long",
-                  })}
-                </h2>
+              <div className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 min-w-0">
+                <select
+                  value={month}
+                  onChange={(event) =>
+                    setCalendarMonth(new Date(year, Number(event.target.value), 1))
+                  }
+                  className="min-w-0 w-full sm:w-auto px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
+                  aria-label="Select calendar month"
+                >
+                  {Array.from({ length: 12 }, (_, monthIndex) => (
+                    <option key={monthIndex} value={monthIndex}>
+                      {new Date(2000, monthIndex, 1).toLocaleString("en-IN", { month: "long" })}
+                    </option>
+                  ))}
+                </select>
 
                 <select
                   value={year}
@@ -1120,7 +1375,7 @@ export default function App() {
                       new Date(Number(e.target.value), month, 1)
                     )
                   }
-                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 font-semibold"
+                  className="min-w-0 w-full sm:w-auto px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
                   aria-label="Select calendar year"
                 >
                   {Array.from({ length: 101 }, (_, i) => 2000 + i).map(
@@ -1137,7 +1392,7 @@ export default function App() {
                 onClick={() =>
                   setCalendarMonth(new Date(year, month + 1, 1))
                 }
-                className={`px-3 py-2 rounded-lg ${button}`}
+                className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap ${button}`}
               >
                 Next →
               </button>
@@ -1161,97 +1416,128 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-              (day) => (
+          <section
+            aria-label={`${calendarMonth.toLocaleString("en-IN", { month: "long" })} ${year} attendance calendar`}
+            className="mt-6 rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm"
+          >
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+              {[
+                ["Sun", "S"], ["Mon", "M"], ["Tue", "T"], ["Wed", "W"],
+                ["Thu", "T"], ["Fri", "F"], ["Sat", "S"]
+              ].map(([fullDay, shortDay]) => (
                 <div
-                  key={day}
-                  className={`py-2 font-semibold text-xs sm:text-sm ${muted}`}
+                  key={fullDay}
+                  className="py-2 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500"
+                  title={fullDay}
                 >
-                  {day}
+                  <span className="sm:hidden">{shortDay}</span>
+                  <span className="hidden sm:inline">{fullDay}</span>
                 </div>
-              )
-            )}
+              ))}
+            </div>
 
-            {cells.map((day, index) => {
-              if (!day) {
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {cells.map((day, index) => {
+                if (!day) {
+                  return (
+                    <div
+                      key={`blank-${index}`}
+                      aria-hidden="true"
+                      className="min-h-[62px] sm:min-h-[92px] rounded-lg sm:rounded-xl border border-transparent bg-gray-50"
+                    />
+                  );
+                }
+
+                const d = new Date(year, month, day);
+                const key = dateKey(d);
+                const attendanceStatus = receiverRecords[key] || "Unmarked";
+                const isPresent = attendanceStatus === "Present";
+                const isAbsent = attendanceStatus === "Absent";
+                const isFuture = d > today;
+                const status = isPresent ? "P" : isAbsent ? "A" : "";
+
+                const isToday =
+                  d.getFullYear() === today.getFullYear() &&
+                  d.getMonth() === today.getMonth() &&
+                  d.getDate() === today.getDate();
+
+                const tileStyle = isPresent
+                  ? "border-green-300 bg-green-50 text-green-800"
+                  : isAbsent
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : isFuture
+                  ? "border-gray-100 bg-gray-50 text-gray-400"
+                  : "border-gray-200 bg-white text-gray-700";
+
                 return (
-                  <div
-                    key={`blank-${index}`}
-                    className="min-h-[48px] sm:min-h-[72px]"
-                  />
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={isFuture}
+                    onClick={() => togglePresent(selectedCustomer.id, d)}
+                    title={
+                      isFuture
+                        ? "Future date"
+                        : isPresent
+                        ? "Present — click to mark Absent"
+                        : isAbsent
+                        ? "Absent — click to clear"
+                        : "Unmarked — click to mark Present"
+                    }
+                    aria-label={`${day} ${calendarMonth.toLocaleString("en-IN", { month: "long" })}: ${
+                      isPresent ? "Present" : isAbsent ? "Absent" : "Unmarked"
+                    }`}
+                    className={`min-w-0 min-h-[62px] sm:min-h-[92px] rounded-lg sm:rounded-xl border p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 sm:gap-2 transition-all ${tileStyle} ${
+                      isToday ? "ring-2 ring-inset ring-blue-500" : ""
+                    } ${
+                      isFuture
+                        ? "cursor-not-allowed"
+                        : "cursor-pointer hover:border-green-400 hover:shadow-sm active:scale-[0.98]"
+                    }`}
+                  >
+                    <span className={`text-xs sm:text-sm font-semibold ${
+                      isToday ? "text-blue-700" : ""
+                    }`}>
+                      {day}
+                    </span>
+
+                    {status ? (
+                      <span className={`min-w-5 h-5 sm:min-w-7 sm:h-7 px-1.5 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-extrabold ${
+                        isPresent
+                          ? "bg-green-600 text-white"
+                          : "bg-red-500 text-white"
+                      }`}>
+                        {status}
+                      </span>
+                    ) : (
+                      <span className="h-5 sm:h-7" aria-hidden="true" />
+                    )}
+                  </button>
                 );
-              }
-
-              const d = new Date(year, month, day);
-              const key = dateKey(d);
-              const isPresent = receiverRecords[key] === "Present";
-              const isPast = d < today;
-              const isFuture = d > today;
-
-              const status = isPresent
-                ? "Present"
-                : isPast
-                ? "Absent"
-                : "Not marked";
-
-              const style = isPresent
-                ? "bg-green-500 text-white border-green-600"
-                : isPast
-                ? "bg-red-100 text-red-700 border-red-200"
-                : "bg-gray-100 text-gray-500 border-gray-200";
-
-              return (
-                <button
-                  key={key}
-                  disabled={isFuture}
-                  onClick={() => togglePresent(selectedCustomer.id, d)}
-                  title={
-                    isFuture
-                      ? "Future date"
-                      : isPresent
-                      ? "Click to unmark Present"
-                      : "Mark Present"
-                  }
-                  className={`min-h-[52px] sm:min-h-[76px] rounded-xl border flex flex-col items-center justify-center gap-1 ${style} ${
-                    isFuture
-                      ? "opacity-70 cursor-not-allowed"
-                      : "hover:ring-2 hover:ring-green-400 cursor-pointer"
-                  }`}
-                >
-                  <span className="font-bold text-base sm:text-lg">
-                    {day}
-                  </span>
-
-                  <span className="text-[10px] sm:text-xs font-semibold">
-                    {status}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+              })}
+            </div>
+          </section>
 
           <div className="flex flex-wrap gap-3 mt-6 text-sm">
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 rounded bg-green-500 inline-block" />
-              Present
+              P
             </span>
 
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 rounded bg-red-100 border border-red-200 inline-block" />
-              Absent (past unmarked)
+              A
             </span>
 
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
-              Today / future
+              Unmarked
             </span>
           </div>
 
           <p className={`mt-4 text-sm ${muted}`}>
-            Click a past or current date to mark Present. If a past date
-            is left unmarked, it automatically shows Absent. Future dates
-            cannot be marked.
+            Click a date to cycle through grey (unmarked), green (P), and red (A).
+            Click again after A to clear it. Future dates cannot be marked.
           </p>
         </div>
       </div>
@@ -1263,7 +1549,7 @@ export default function App() {
   ========================= */
 
   const ModulePage = () => {
-    const records = attendanceRecords[selectedCustomer.id - 1];
+    const records = getAttendanceRecords(selectedCustomer.id);
 
     return (
       <div className={`max-w-5xl mx-auto px-4 py-8 ${bg}`}>
@@ -1907,42 +2193,42 @@ export default function App() {
   ========================= */
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${bg}`}>
-      <Navbar />
+    <div className={`w-full min-w-0 min-h-screen overflow-x-hidden flex flex-col transition-colors duration-300 ${bg}`}>
+      {Navbar()}
 
-      <main className="flex-1">
-        {page === "Home" && <Home />}
+      <main className="w-full min-w-0 flex-1">
+        {page === "Home" && Home()}
 
-        {page === "Administration" && <AdministrationPage />}
+        {page === "Administration" && AdministrationPage()}
 
-        {page === "AdminReceivers" && <AdminReceivers />}
+        {page === "AdminReceivers" && AdminReceivers()}
 
-        {page === "AdminAttendance" && <AdminAttendance />}
+        {page === "AdminAttendance" && AdminAttendance()}
 
-        {page === "AdminPayments" && <AdminPayments />}
+        {page === "AdminPayments" && AdminPayments()}
 
-        {page === "AdminReports" && <AdminReports />}
+        {page === "AdminReports" && AdminReports()}
 
-        {page === "Menu" && <MenuPage />}
+        {page === "Menu" && MenuPage()}
 
-        {page === "Settings" && <SettingsPage />}
+        {page === "Settings" && SettingsPage()}
 
-        {page === "Contact" && <ContactPage />}
+        {page === "Contact" && ContactPage()}
 
         {page === "CustomerProfile" && selectedCustomer && (
-          <CustomerProfile />
+          CustomerProfile()
         )}
 
         {page === "ReceiverCalendar" && selectedCustomer && (
-          <ReceiverCalendar />
+          ReceiverCalendar()
         )}
 
         {page === "Module" && selectedCustomer && (
-          <ModulePage />
+          ModulePage()
         )}
       </main>
 
-      <Footer />
+      {Footer()}
     </div>
   );
 }
