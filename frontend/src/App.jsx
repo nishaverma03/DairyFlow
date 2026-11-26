@@ -7,6 +7,17 @@ import React, { useState, useEffect } from "react";
 
 const TODAY_MILK_RATE = 60;
 
+/* =========================
+   AUTHORIZED LOGIN ACCOUNTS
+   Add one object for every person who is allowed to sign in.
+   Replace the example values before using the app.
+========================= */
+const ALLOWED_USERS = [
+  { email: "nv200303@gmail.com", password: "gfhjkksgs" },
+  // Add more authorized users here, one account per person:
+  // { email: "another-person@example.com", password: "their-own-password" },
+];
+
 const sampleCustomers = [
   { id: 1, name: "Vishesh", phone: "9876543210", milk: 1.5, rate: 50 },
   { id: 2, name: "Amit Singh", phone: "9876543211", milk: 2, rate: 52 },
@@ -302,6 +313,7 @@ export default function App() {
     setSelectedCustomer(null);
     setModule("");
     localStorage.removeItem("dairyflowLoggedIn");
+    localStorage.removeItem("dairyflow_currentUser");
   };
 
   const filteredCustomers = customers.filter(
@@ -370,11 +382,20 @@ export default function App() {
             onSubmit={(e) => {
               e.preventDefault();
 
-              if (!email.trim() || !password.trim()) {
-                alert("Please enter email and password.");
+              const normalizedEmail = email.trim().toLowerCase();
+              const matchedUser = ALLOWED_USERS.find(
+                (user) =>
+                  user.email.toLowerCase() === normalizedEmail &&
+                  user.password === password
+              );
+
+              if (!matchedUser) {
+                alert("Invalid email or password. Please use an authorized DairyFlow account.");
                 return;
               }
 
+              // Only an email/password pair listed in ALLOWED_USERS can sign in.
+              localStorage.setItem("dairyflow_currentUser", matchedUser.email);
               setLoggedIn(true);
               setPage("Home");
             }}
