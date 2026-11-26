@@ -1,0 +1,4 @@
+To update DairyFlow, open PowerShell and run these commands one at a time.
+
+cd E:\DairyFlow
+git pull --ff-only

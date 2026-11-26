@@ -1,53 +1,35 @@
 import os
 import ssl
+from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import URL, create_engine, event, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import sessionmaker
 
-load_dotenv()
+BACKEND = Path(__file__).resolve().parents[1]
+load_dotenv(BACKEND / ".env")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not configured in the .env file")
+@lru_cache(maxsize=1)
+def get_engine():
+    raw = os.getenv("DATABASE_URL")
+    url = make_url(raw) if raw else URL.create("sqlite", database=str(BACKEND / "dairyflow.sqlite3"))
+    if url.get_backend_name() == "sqlite":
+        engine = create_engine(url, connect_args={"timeout": 15})
 
-# Switch to the pg8000 driver
-DATABASE_URL = DATABASE_URL.replace(
-    "postgresql+psycopg://",
-    "postgresql+pg8000://",
-)
+        @event.listens_for(engine, "connect")
+        def enable_constraints(connection, _):
+            connection.execute("PRAGMA foreign_keys=ON")
 
-# Parse the database URL
-database_url = make_url(DATABASE_URL)
+        return engine
 
-# Remove parameters unsupported by pg8000
-query_parameters = dict(database_url.query)
-query_parameters.pop("sslmode", None)
-query_parameters.pop("channel_binding", None)
-
-database_url = database_url.set(query=query_parameters)
-
-# Configure secure SSL connection
-ssl_context = ssl.create_default_context()
-
-engine = create_engine(
-    database_url,
-    pool_pre_ping=True,
-    connect_args={
-        "ssl_context": ssl_context,
-    },
-)
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-)
+    if url.get_backend_name() not in {"postgresql", "postgres"}:
+        raise ValueError("DATABASE_URL must use SQLite or PostgreSQL")
+    url = url.set(drivername="postgresql+pg8000").difference_update_query(["sslmode", "channel_binding"])
+    return create_engine(url, pool_pre_ping=True, connect_args={"ssl_context": ssl.create_default_context()})
 
 
 def test_database_connection():
-    with engine.connect() as connection:
-        result = connection.execute(text("SELECT 1"))
-        return result.scalar()
+    with get_engine().connect() as connection:
+        return connection.execute(text("SELECT 1")).scalar_one()

@@ -1,9 +1,26 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import test_database_connection
+from app.api.management import router as management_router
+from app.api.routes import router
+from app.database import get_engine
+from app.models import Base
+
+
+@asynccontextmanager
+async def lifespan(app):
+    engine = get_engine()
+    Base.metadata.create_all(engine)
+    try:
+        yield
+    finally:
+        engine.dispose()
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="DairyFlow API",
     description="Backend API for DairyFlow dairy management system",
     version="1.0.0",
@@ -21,36 +38,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/")
-def root():
-    return {
-        "message": "Welcome to DairyFlow API",
-        "status": "running",
-    }
-
-
-@app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "application": "DairyFlow",
-    }
-
-
-@app.get("/db-test")
-def database_test():
-    try:
-        result = test_database_connection()
-
-        return {
-            "status": "success",
-            "message": "Successfully connected to Neon PostgreSQL!",
-            "test_result": result,
-        }
-
-    except Exception:
-        return {
-            "status": "error",
-            "message": "Database connection failed. Check your database configuration.",
-        }
+app.include_router(router)
+app.include_router(management_router)

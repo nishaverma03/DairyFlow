@@ -11,3 +11,86 @@ body,
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.df-header {
+  --nav-bg: #fff;
+  --nav-ink: #233e34;
+  --nav-line: #dbe7df;
+  --nav-selected: #ddf4e4;
+  color: var(--nav-ink);
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--nav-line);
+}
+.df-header[data-dark="true"] {
+  --nav-bg: #111c19;
+  --nav-ink: #e5f3e9;
+  --nav-line: #32463b;
+  --nav-selected: #244537;
+}
+.df-header-inner, .df-nav, .df-brand, .df-signout, .df-nav button {
+  display: flex;
+  align-items: center;
+}
+.df-header-inner { max-width: 80rem; margin: auto; padding: .55rem 1rem; justify-content: space-between; gap: .5rem; }
+.df-brand { gap: .55rem; font-size: 1.22rem; font-weight: 750; letter-spacing: -.04em; }
+.df-brand span { display: grid; place-items: center; border-radius: .8rem; width: 2.5rem; height: 2.5rem; background: #116542; color: white; }
+.df-nav { gap: .3rem; }
+.df-nav button, .df-signout { gap: .4rem; min-height: 44px; padding: .5rem .7rem; border-radius: .85rem; font-size: .9rem; font-weight: 600; }
+.df-nav button[aria-current] { background: var(--nav-selected); }
+.df-shell button, .df-login button { cursor: pointer; touch-action: manipulation; }
+:focus-visible { outline: 3px solid #348b69; outline-offset: 2px; }
+@media (max-width: 639px) {
+  .df-shell { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+  .df-nav { position: fixed; z-index: 30; bottom: 0; inset-inline: 0; display: grid; grid-template-columns: repeat(4,1fr); gap: .3rem; padding: .35rem max(.65rem,env(safe-area-inset-right)) calc(.35rem + env(safe-area-inset-bottom)) max(.65rem,env(safe-area-inset-left)); background: var(--nav-bg); border-top: 1px solid var(--nav-line); box-shadow: 0 -4px 22px #102b1a0c; }
+  .df-nav button { flex-direction: column; justify-content: center; gap: .18rem; min-height: 49px; font-size: .72rem; }
+  .df-screen > div { padding-top: 1.25rem; }
+  .df-screen button { min-height: 44px; }
+  .df-screen input:not([type=checkbox]), .df-screen select, .df-login input { font-size: 16px; }
+  .df-summary { grid-template-columns: repeat(2,minmax(0,1fr)); gap: .65rem; margin-bottom: 1.4rem; }
+  .df-summary > div { padding: .85rem; min-width: 0; }
+  .df-summary > div:nth-child(3) { display: flex; flex-direction: column; align-items: start; }
+  .df-summary > div:nth-child(3) > div:first-child { display: none; }
+  .df-summary > div:nth-child(3) h2 { margin-top: 0; font-size: 1.15rem; }
+  .df-summary > div:nth-child(3) p { font-size: .8rem; }
+  .df-summary form input { width: 4rem; min-width: 0; }
+  .df-receivers { gap: .65rem; }
+  .df-receivers > div { padding: .85rem 1rem; }
+  .df-receivers > div > div:nth-child(2) { margin-top: .65rem; border-top: 1px solid #80808030; padding-top: .55rem; }
+  .df-receivers > div > button:last-child { display: none; }
+  .df-login { padding: 1.5rem; }
+  html { scroll-padding-bottom: 5rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .df-screen, .df-login { animation: df-enter 200ms ease-out both; }
+  .df-nav button, .df-shell button, .df-login button { transition: background-color 150ms ease, transform 120ms ease; }
+  .df-shell button:active, .df-login button:active { transform: scale(.97); }
+  @keyframes df-enter { from { opacity: .65; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Laptop receiver directory: align names, daily quantities, and actions across rows. */
+@media (min-width: 1024px) {
+  .df-receivers {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .55rem;
+  }
+  .df-receiver {
+    display: grid;
+    grid-template-columns: minmax(16rem, 1.4fr) minmax(15rem, 1fr) auto;
+    align-items: center;
+    column-gap: clamp(2rem, 5vw, 5rem);
+    padding: .85rem 1.25rem;
+  }
+  .df-receiver-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0;
+  }
+  .df-receiver-totals .text-right { text-align: left; }
+  .df-receiver > button:last-child { margin-top: 0; padding: .65rem; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .df-nav button:hover, .df-signout:hover { background: var(--nav-selected); }
+}
