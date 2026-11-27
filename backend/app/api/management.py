@@ -1,5 +1,8 @@
+
 import os
 import secrets
+from dotenv import load_dotenv
+load_dotenv()
 from calendar import monthrange
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
@@ -49,12 +52,21 @@ def active_customer(db, customer_id):
 
 
 def effective_rate(db, day):
-    rate = db.scalar(select(MilkRate.rate).where(MilkRate.day <= day).order_by(MilkRate.day.desc()).limit(1))
+    rate = db.scalar(
+        select(MilkRate.rate)
+        .where(MilkRate.day <= day)
+        .order_by(MilkRate.day.desc())
+        .limit(1)
+    )
     return Decimal("60.00") if rate is None else rate
 
 
 def insert_for(db, model):
-    return (sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert)(model)
+    return (
+        sqlite_insert
+        if db.get_bind().dialect.name == "sqlite"
+        else pg_insert
+    )(model)
 
 
 @router.get("/rates/{day}")
@@ -65,14 +77,23 @@ def read_rate(day: date, db: DB):
 @router.put("/rates/{day}")
 def save_rate(day: date, body: RateInput, db: DB):
     stmt = insert_for(db, MilkRate).values(day=day, rate=body.rate)
-    db.execute(stmt.on_conflict_do_update(index_elements=["day"], set_={"rate": body.rate}))
+    db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=["day"],
+            set_={"rate": body.rate},
+        )
+    )
     db.commit()
     return {"day": day, "rate": body.rate}
 
 
 @router.get("/customers", response_model=list[CustomerView])
 def list_customers(db: DB):
-    return db.scalars(select(Customer).where(Customer.active.is_(True)).order_by(Customer.id)).all()
+    return db.scalars(
+        select(Customer)
+        .where(Customer.active.is_(True))
+        .order_by(Customer.id)
+    ).all()
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerView)
@@ -86,7 +107,10 @@ def save_customer(db, customer):
         db.commit()
     except IntegrityError as error:
         db.rollback()
-        raise HTTPException(409, "Phone number already belongs to a customer") from error
+        raise HTTPException(
+            409,
+            "Phone number already belongs to a customer",
+        ) from error
     return customer
 
 
@@ -101,8 +125,10 @@ def add_customer(body: CustomerInput, db: DB):
 @router.put("/customers/{customer_id}", response_model=CustomerView)
 def update_customer(customer_id: int, body: CustomerInput, db: DB):
     customer = active_customer(db, customer_id)
+
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(customer, field, value)
+
     return save_customer(db, customer)
 
 
@@ -111,56 +137,158 @@ def archive_customer(customer_id: int, db: DB):
     customer = db.get(Customer, customer_id)
     if not customer:
         raise HTTPException(404, "Customer not found")
+
     customer.active = False
     db.commit()
     return Response(status_code=204)
 
 
 @router.put("/customers/{customer_id}/attendance/{day}")
-def mark_attendance(customer_id: int, day: date, body: AttendanceInput, db: DB):
+def mark_attendance(
+    customer_id: int,
+    day: date,
+    body: AttendanceInput,
+    db: DB,
+):
     customer = active_customer(db, customer_id)
-    stmt = insert_for(db, Attendance).values(customer_id=customer_id, day=day, status=body.status,
-                                            milk=customer.milk, rate=customer.rate)
-    db.execute(stmt.on_conflict_do_update(index_elements=["customer_id", "day"], set_={"status": body.status}))
+
+    # Absent means no milk delivered.
+    # Present uses the custom quantity if supplied,
+    # otherwise it uses the customer's regular quantity.
+    if body.status == "Absent":
+        milk_quantity = Decimal("0.000")
+    else:
+        milk_quantity = (
+            body.milk
+            if body.milk is not None
+            else customer.milk
+        )
+
+    stmt = insert_for(db, Attendance).values(
+        customer_id=customer_id,
+        day=day,
+        status=body.status,
+        milk=milk_quantity,
+        rate=customer.rate,
+    )
+
+    db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=["customer_id", "day"],
+            set_={
+                "status": body.status,
+                "milk": milk_quantity,
+            },
+        )
+    )
+
     db.commit()
-    return {"customer_id": customer_id, "day": day, "status": body.status}
+
+    return {
+        "customer_id": customer_id,
+        "day": day,
+        "status": body.status,
+        "milk": milk_quantity,
+        "rate": customer.rate,
+    }
 
 
 @router.delete("/customers/{customer_id}/attendance/{day}", status_code=204)
 def clear_attendance(customer_id: int, day: date, db: DB):
     active_customer(db, customer_id)
-    db.execute(delete(Attendance).where(Attendance.customer_id == customer_id, Attendance.day == day))
+
+    db.execute(
+        delete(Attendance).where(
+            Attendance.customer_id == customer_id,
+            Attendance.day == day,
+        )
+    )
+
     db.commit()
     return Response(status_code=204)
 
 
 def month_bounds(year, month):
-    return date(year, month, 1), date(year, month, monthrange(year, month)[1])
+    return (
+        date(year, month, 1),
+        date(year, month, monthrange(year, month)[1]),
+    )
 
 
 @router.get("/customers/{customer_id}/attendance/{year}/{month}")
-def monthly_attendance(customer_id: int, year: Year, month: Month, db: DB):
+def monthly_attendance(
+    customer_id: int,
+    year: Year,
+    month: Month,
+    db: DB,
+):
     if db.get(Customer, customer_id) is None:
         raise HTTPException(404, "Customer not found")
-    rows = db.scalars(select(Attendance).where(Attendance.customer_id == customer_id,
-                      Attendance.day.between(*month_bounds(year, month))).order_by(Attendance.day))
-    return [{"day": r.day, "status": r.status, "milk": r.milk, "rate": r.rate} for r in rows]
+
+    rows = db.scalars(
+        select(Attendance)
+        .where(
+            Attendance.customer_id == customer_id,
+            Attendance.day.between(*month_bounds(year, month)),
+        )
+        .order_by(Attendance.day)
+    )
+
+    return [
+        {
+            "day": r.day,
+            "status": r.status,
+            "milk": r.milk,
+            "rate": r.rate,
+        }
+        for r in rows
+    ]
 
 
 @router.get("/reports/{year}/{month}")
 def monthly_report(year: Year, month: Month, db: DB):
-    rows = db.execute(select(Attendance, Customer.name).join(Customer).where(
-        Attendance.day.between(*month_bounds(year, month))).order_by(Customer.id, Attendance.day))
+    rows = db.execute(
+        select(Attendance, Customer.name)
+        .join(Customer)
+        .where(Attendance.day.between(*month_bounds(year, month)))
+        .order_by(Customer.id, Attendance.day)
+    )
+
     customers = {}
+
     for record, name in rows:
-        item = customers.setdefault(record.customer_id, {"customer_id": record.customer_id, "name": name,
-            "present": 0, "absent": 0, "litres": Decimal("0.000"), "amount": Decimal("0.00")})
+        item = customers.setdefault(
+            record.customer_id,
+            {
+                "customer_id": record.customer_id,
+                "name": name,
+                "present": 0,
+                "absent": 0,
+                "litres": Decimal("0.000"),
+                "amount": Decimal("0.00"),
+            },
+        )
+
         if record.status == "Present":
             item["present"] += 1
             item["litres"] += record.milk
-            item["amount"] += (record.milk * record.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            item["amount"] += (
+                record.milk * record.rate
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
         else:
             item["absent"] += 1
-    return {"year": year, "month": month, "customers": list(customers.values()),
-            "total_litres": sum(item["litres"] for item in customers.values()),
-            "total_amount": sum(item["amount"] for item in customers.values())}
+
+    return {
+        "year": year,
+        "month": month,
+        "customers": list(customers.values()),
+        "total_litres": sum(
+            item["litres"] for item in customers.values()
+        ),
+        "total_amount": sum(
+            item["amount"] for item in customers.values()
+        ),
+    }

@@ -1,17 +1,12 @@
 
-
-
-
-
-
-
-
 import { useState, useEffect } from "react";
 import { TODAY_MILK_RATE } from "./data/dairy.js";
 import { apiRequest } from "./api/dairyApi.js";
 import { ALLOWED_USERS } from "./auth/allowedUsers.js";
+
 import Navbar from "./components/layout/Navbar.jsx";
 import Footer from "./components/layout/Footer.jsx";
+
 import Home from "./pages/Home.jsx";
 import AdministrationPage from "./pages/AdministrationPage.jsx";
 import AdminReceivers from "./pages/AdminReceivers.jsx";
@@ -196,13 +191,11 @@ export default function App() {
         rate: Number(savedCustomer.rate),
       };
 
-      // Add saved customer to React state immediately
       setCustomers((currentCustomers) => [
         ...currentCustomers,
         normalizedCustomer,
       ]);
 
-      // Reset form
       setNewCustomerName("");
       setNewCustomerPhone("");
       setNewCustomerMilk("1");
@@ -249,7 +242,7 @@ export default function App() {
     }
   };
 
-  // Attendance records for a customer
+  // Attendance records for a customer (local calendar)
   const getAttendanceRecords = (customerId) => {
     const customerAttendance =
       calendarAttendance[customerId] || {};
@@ -257,7 +250,7 @@ export default function App() {
     return Object.values(customerAttendance);
   };
 
-  // Save attendance to localStorage
+  // Save calendar attendance to localStorage
   useEffect(() => {
     localStorage.setItem(
       "dairyflow_calendarAttendance",
@@ -286,13 +279,12 @@ export default function App() {
     return `${y}-${m}-${d}`;
   };
 
-  // Toggle attendance
+  // Toggle local calendar attendance
   const togglePresent = (customerId, date) => {
     const key = dateKey(date);
 
     setCalendarAttendance((old) => {
       const next = { ...old };
-
       const currentStatus = next[customerId]?.[key];
 
       next[customerId] = {
@@ -375,8 +367,6 @@ export default function App() {
     if (page === "Module") {
       setPage("CustomerProfile");
       setModule("");
-    } else if (page === "CustomerProfile") {
-      goHome();
     } else {
       goHome();
     }
@@ -392,11 +382,10 @@ export default function App() {
     localStorage.removeItem("dairyflow_currentUser");
   };
 
-
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone.includes(search)
+      String(customer.phone).includes(search)
   );
 
   const totalMilk = customers.reduce(
@@ -442,6 +431,7 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [page, loggedIn]);
 
+  // Login screen
   if (!loggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 via-white to-emerald-200 px-4 py-10">
@@ -540,6 +530,7 @@ export default function App() {
     );
   }
 
+  // Main application
   return (
     <div
       className={`df-shell w-full min-w-0 min-h-screen overflow-x-hidden flex flex-col transition-colors duration-300 ${bg}`}
@@ -614,14 +605,12 @@ export default function App() {
           />
         )}
 
+        {/* Updated: AdminAttendance now fetches and saves its own backend records */}
         {page === "AdminAttendance" && (
           <AdminAttendance
             dark={dark}
             setPage={setPage}
             customers={customers}
-            getAttendanceRecords={getAttendanceRecords}
-            totalPresent={totalPresent}
-            totalAbsent={totalAbsent}
             bg={bg}
             card={card}
             muted={muted}
