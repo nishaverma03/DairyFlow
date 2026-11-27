@@ -1,8 +1,15 @@
+
+
+
+
+
+
+
+
 import { useState, useEffect } from "react";
 import { TODAY_MILK_RATE } from "./data/dairy.js";
 import { apiRequest } from "./api/dairyApi.js";
 import { ALLOWED_USERS } from "./auth/allowedUsers.js";
-
 import Navbar from "./components/layout/Navbar.jsx";
 import Footer from "./components/layout/Footer.jsx";
 import Home from "./pages/Home.jsx";
@@ -33,14 +40,10 @@ export default function App() {
   const [search, setSearch] = useState("");
 
   const [todayMilkRate, setTodayMilkRate] = useState(() => {
-    const savedRate = Number(localStorage.getItem("dairyflow_todayMilkRate"));
+    const savedRate = localStorage.getItem("dairyflow_todayMilkRate");
 
-    return (
-      Number.isFinite(savedRate) &&
-      savedRate >= 0 &&
-      localStorage.getItem("dairyflow_todayMilkRate") !== null
-    )
-      ? savedRate
+    return savedRate !== null && Number.isFinite(Number(savedRate))
+      ? Number(savedRate)
       : TODAY_MILK_RATE;
   });
 
@@ -48,23 +51,61 @@ export default function App() {
 
   const [milkRateInput, setMilkRateInput] = useState(() => {
     const savedRate = localStorage.getItem("dairyflow_todayMilkRate");
-    return savedRate !== null ? savedRate : String(TODAY_MILK_RATE);
+
+    return savedRate !== null
+      ? savedRate
+      : String(TODAY_MILK_RATE);
   });
 
-  // Customers now come from the backend database
+  // Customer data from backend
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [customerError, setCustomerError] = useState("");
 
+  // Add customer form
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerMilk, setNewCustomerMilk] = useState("1");
 
+  // Load customers from backend when App starts
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        setLoadingCustomers(true);
+        setCustomerError("");
+
+        const data = await apiRequest("/api/customers");
+
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid customer data received from backend.");
+        }
+
+        const normalizedCustomers = data.map((customer) => ({
+          ...customer,
+          id: Number(customer.id),
+          milk: Number(customer.milk),
+          rate: Number(customer.rate),
+        }));
+
+        setCustomers(normalizedCustomers);
+      } catch (error) {
+        console.error("Failed to load customers:", error);
+        setCustomerError(
+          error.message || "Unable to load customers."
+        );
+      } finally {
+        setLoadingCustomers(false);
+      }
+    };
+
+    loadCustomers();
+  }, []);
+
+  // Calendar
   const [calendarMonth, setCalendarMonth] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
 
-  // Attendance is temporarily retained in local storage
   const [calendarAttendance, setCalendarAttendance] = useState(() => {
     try {
       return JSON.parse(
@@ -75,43 +116,13 @@ export default function App() {
     }
   });
 
-  // LOAD CUSTOMERS FROM BACKEND
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setLoadingCustomers(true);
-        setCustomerError("");
-
-        const data = await apiRequest("/api/customers");
-        setCustomers(data);
-      } catch (error) {
-        console.error("Failed to load customers:", error);
-        setCustomerError(
-          error.message || "Failed to load customers from the server."
-        );
-      } finally {
-        setLoadingCustomers(false);
-      }
-    };
-
-    fetchCustomers();
-  }, []);
-
-  // SAVE MILK RATE
+  // Save milk rate
   useEffect(() => {
     localStorage.setItem(
       "dairyflow_todayMilkRate",
       String(todayMilkRate)
     );
   }, [todayMilkRate]);
-
-  // SAVE ATTENDANCE
-  useEffect(() => {
-    localStorage.setItem(
-      "dairyflow_calendarAttendance",
-      JSON.stringify(calendarAttendance)
-    );
-  }, [calendarAttendance]);
 
   const saveTodayMilkRate = (event) => {
     event.preventDefault();
@@ -132,12 +143,14 @@ export default function App() {
     setIsEditingMilkRate(false);
   };
 
-  // ADD CUSTOMER TO DATABASE
+  // Add customer
   const addCustomer = async (event) => {
     event.preventDefault();
 
     const name = newCustomerName.trim();
     const phone = newCustomerPhone.trim();
+    const milk = Number(newCustomerMilk);
+    const rate = todayMilkRate;
 
     if (!name || !phone) {
       alert("Please enter the customer name and phone number.");
@@ -149,13 +162,14 @@ export default function App() {
       return;
     }
 
-    if (customers.some((customer) => customer.phone === phone)) {
+    if (
+      customers.some(
+        (customer) => String(customer.phone) === phone
+      )
+    ) {
       alert("A customer with this phone number already exists.");
       return;
     }
-
-    const milk = Number(newCustomerMilk);
-    const rate = todayMilkRate;
 
     if (!Number.isFinite(milk) || milk <= 0) {
       alert("Please enter a valid milk quantity greater than 0.");
@@ -163,7 +177,9 @@ export default function App() {
     }
 
     try {
-      const createdCustomer = await apiRequest("/api/customers", {
+      setCustomerError("");
+
+      const savedCustomer = await apiRequest("/api/customers", {
         method: "POST",
         body: JSON.stringify({
           name,
@@ -173,19 +189,33 @@ export default function App() {
         }),
       });
 
-      setCustomers((current) => [...current, createdCustomer]);
+      const normalizedCustomer = {
+        ...savedCustomer,
+        id: Number(savedCustomer.id),
+        milk: Number(savedCustomer.milk),
+        rate: Number(savedCustomer.rate),
+      };
 
+      // Add saved customer to React state immediately
+      setCustomers((currentCustomers) => [
+        ...currentCustomers,
+        normalizedCustomer,
+      ]);
+
+      // Reset form
       setNewCustomerName("");
       setNewCustomerPhone("");
       setNewCustomerMilk("1");
+
+      alert("Customer added successfully!");
     } catch (error) {
       console.error("Failed to add customer:", error);
-      alert(error.message || "Failed to add customer.");
+      alert(error.message || "Failed to add customer. Please try again.");
     }
   };
 
-  // DELETE CUSTOMER FROM DATABASE
-  const removeCustomer = async (customerId) => {
+  // Remove customer from current frontend list
+  const removeCustomer = (customerId) => {
     const customer = customers.find(
       (item) => item.id === customerId
     );
@@ -200,66 +230,54 @@ export default function App() {
       return;
     }
 
-    try {
-      await apiRequest(`/api/customers/${customerId}`, {
-        method: "DELETE",
-      });
+    setCustomers((currentCustomers) =>
+      currentCustomers.filter(
+        (item) => item.id !== customerId
+      )
+    );
 
-      setCustomers((current) =>
-        current.filter((item) => item.id !== customerId)
-      );
+    setCalendarAttendance((current) => {
+      const next = { ...current };
+      delete next[customerId];
+      return next;
+    });
 
-      setCalendarAttendance((current) => {
-        const next = { ...current };
-        delete next[customerId];
-        return next;
-      });
-
-      if (selectedCustomer?.id === customerId) {
-        setSelectedCustomer(null);
-        setPage("Home");
-        setModule("");
-      }
-    } catch (error) {
-      console.error("Failed to remove customer:", error);
-      alert(error.message || "Failed to remove customer.");
+    if (selectedCustomer?.id === customerId) {
+      setSelectedCustomer(null);
+      setPage("Home");
+      setModule("");
     }
   };
 
-  // GET ATTENDANCE RECORDS
+  // Attendance records for a customer
   const getAttendanceRecords = (customerId) => {
-    const customerAttendance = calendarAttendance[customerId] || {};
+    const customerAttendance =
+      calendarAttendance[customerId] || {};
 
-    const today = new Date();
-    const records = [];
-
-    // Return the last five days of attendance
-    for (let i = 4; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-
-      const key = dateKey(date);
-      records.push(customerAttendance[key] || "Absent");
-    }
-
-    return records;
+    return Object.values(customerAttendance);
   };
 
+  // Save attendance to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      "dairyflow_calendarAttendance",
+      JSON.stringify(calendarAttendance)
+    );
+  }, [calendarAttendance]);
+
+  // Open customer calendar
   const openCalendar = (customer) => {
     setSelectedCustomer(customer);
 
     setCalendarMonth(
-      new Date(
-        new Date().getFullYear(),
-        new Date().getMonth(),
-        1
-      )
+      new Date(new Date().getFullYear(), new Date().getMonth(), 1)
     );
 
     setPage("ReceiverCalendar");
     setModule("");
   };
 
+  // Format date
   const dateKey = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -268,7 +286,7 @@ export default function App() {
     return `${y}-${m}-${d}`;
   };
 
-  // TOGGLE ATTENDANCE
+  // Toggle attendance
   const togglePresent = (customerId, date) => {
     const key = dateKey(date);
 
@@ -277,11 +295,11 @@ export default function App() {
 
       const currentStatus = next[customerId]?.[key];
 
-      // Cycle: Unmarked -> Present -> Absent -> Unmarked
       next[customerId] = {
         ...(next[customerId] || {}),
       };
 
+      // Unmarked -> Present -> Absent -> Unmarked
       if (!currentStatus) {
         next[customerId][key] = "Present";
       } else if (currentStatus === "Present") {
@@ -290,7 +308,6 @@ export default function App() {
         delete next[customerId][key];
       }
 
-      // Remove empty customer attendance object
       if (Object.keys(next[customerId]).length === 0) {
         delete next[customerId];
       }
@@ -299,14 +316,15 @@ export default function App() {
     });
   };
 
+  // Login states
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  /* SETTINGS STATES */
-
+  // Settings states
   const [managerName, setManagerName] = useState(
-    localStorage.getItem("dairyflow_managerName") || "Dairy Manager"
+    localStorage.getItem("dairyflow_managerName") ||
+      "Dairy Manager"
   );
 
   const [managerEmail, setManagerEmail] = useState(
@@ -314,8 +332,7 @@ export default function App() {
   );
 
   const [milkNotifications, setMilkNotifications] = useState(true);
-  const [attendanceNotifications, setAttendanceNotifications] =
-    useState(true);
+  const [attendanceNotifications, setAttendanceNotifications] = useState(true);
   const [paymentNotifications, setPaymentNotifications] = useState(true);
 
   const [defaultUnit, setDefaultUnit] = useState("Litres (L)");
@@ -323,20 +340,20 @@ export default function App() {
 
   const [profileSaved, setProfileSaved] = useState(false);
 
-  /* SAVE THEME */
-
+  // Save theme
   useEffect(() => {
-    localStorage.setItem("dairyflow_theme", dark ? "dark" : "light");
+    localStorage.setItem(
+      "dairyflow_theme",
+      dark ? "dark" : "light"
+    );
   }, [dark]);
 
-  /* SAVE LOGIN */
-
+  // Save login
   useEffect(() => {
     localStorage.setItem("dairyflowLoggedIn", loggedIn);
   }, [loggedIn]);
 
-  /* NAVIGATION */
-
+  // Navigation
   const goHome = () => {
     setPage("Home");
     setSelectedCustomer(null);
@@ -374,6 +391,7 @@ export default function App() {
     localStorage.removeItem("dairyflowLoggedIn");
     localStorage.removeItem("dairyflow_currentUser");
   };
+
 
   const filteredCustomers = customers.filter(
     (customer) =>
@@ -424,7 +442,6 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [page, loggedIn]);
 
-  // LOGIN SCREEN
   if (!loggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 via-white to-emerald-200 px-4 py-10">
@@ -523,7 +540,6 @@ export default function App() {
     );
   }
 
-  // MAIN APPLICATION
   return (
     <div
       className={`df-shell w-full min-w-0 min-h-screen overflow-x-hidden flex flex-col transition-colors duration-300 ${bg}`}
@@ -550,6 +566,8 @@ export default function App() {
             milkRateInput={milkRateInput}
             setMilkRateInput={setMilkRateInput}
             customers={customers}
+            loadingCustomers={loadingCustomers}
+            customerError={customerError}
             saveTodayMilkRate={saveTodayMilkRate}
             openCalendar={openCalendar}
             openCustomer={openCustomer}
