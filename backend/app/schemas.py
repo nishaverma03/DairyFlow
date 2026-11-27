@@ -30,3 +30,4 @@ class RateInput(Input):
 
 class AttendanceInput(Input):
     status: Literal["Present", "Absent"]
+    milk: Quantity | None = None

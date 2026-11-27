@@ -1,11 +1,13 @@
+
+import { useEffect, useState } from "react";
+import { apiRequest } from "../api/dairyApi.js";
+
 const ReceiverCalendar = ({
   setPage,
   selectedCustomer,
   calendarMonth,
   setCalendarMonth,
-  calendarAttendance,
   dateKey,
-  togglePresent,
   bg,
   card,
   muted,
@@ -19,37 +21,168 @@ const ReceiverCalendar = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const receiverRecords = calendarAttendance[selectedCustomer.id] || {};
+  const [records, setRecords] = useState({});
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [status, setStatus] = useState("Present");
+  const [quantity, setQuantity] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
+  // Load saved attendance from backend.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAttendance = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await apiRequest(
+          `/api/customers/${selectedCustomer.id}/attendance/${year}/${month + 1}`
+        );
+
+        const attendanceList = Array.isArray(data)
+          ? data
+          : data.records || [];
+
+        const nextRecords = {};
+
+        attendanceList.forEach((record) => {
+          const day = String(record.day).padStart(2, "0");
+          const key = `${year}-${String(month + 1).padStart(2, "0")}-${day}`;
+
+          nextRecords[key] = {
+            status: record.status,
+            milk: Number(record.milk ?? 0),
+            rate: record.rate,
+          };
+        });
+
+        if (!cancelled) {
+          setRecords(nextRecords);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Unable to load attendance.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadAttendance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomer.id, year, month]);
+
+  const receiverRecords = records;
+
+  // Attendance counts.
   let presentCount = 0;
   let absentCount = 0;
   let unmarkedCount = 0;
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day);
-    const key = dateKey(d);
+    const key = dateKey(new Date(year, month, day));
+    const record = receiverRecords[key];
 
-    if (receiverRecords[key] === "Present") presentCount++;
-    else if (receiverRecords[key] === "Absent") absentCount++;
+    if (record?.status === "Present") presentCount++;
+    else if (record?.status === "Absent") absentCount++;
     else unmarkedCount++;
   }
 
+  // Calendar cells.
   const cells = [];
 
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let day = 1; day <= daysInMonth; day++) cells.push(day);
   while (cells.length % 7 !== 0) cells.push(null);
 
+  // Open editor only when a date is clicked.
+  const openEditor = (date) => {
+    const key = dateKey(date);
+    const existing = receiverRecords[key];
+
+    setSelectedDate(date);
+    setStatus(existing?.status || "Present");
+
+    setQuantity(
+      String(
+        existing?.status === "Present" && existing.milk > 0
+          ? existing.milk
+          : selectedCustomer.milk ?? 1
+      )
+    );
+
+    setError("");
+  };
+
+  // Save attendance and daily milk quantity.
+  const saveAttendance = async () => {
+    if (!selectedDate) return;
+
+    if (
+      status === "Present" &&
+      (!quantity ||
+        !Number.isFinite(Number(quantity)) ||
+        Number(quantity) <= 0)
+    ) {
+      setError("Please enter a valid milk quantity greater than zero.");
+      return;
+    }
+
+    const key = dateKey(selectedDate);
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const result = await apiRequest(
+        `/api/customers/${selectedCustomer.id}/attendance/${key}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            status,
+            milk: status === "Present" ? Number(quantity) : null,
+          }),
+        }
+      );
+
+      setRecords((previous) => ({
+        ...previous,
+        [key]: {
+          status: result.status || status,
+          milk:
+            result.milk ??
+            (status === "Present" ? Number(quantity) : 0),
+          rate: result.rate ?? selectedCustomer.rate,
+        },
+      }));
+
+      setSelectedDate(null);
+    } catch (err) {
+      setError(err.message || "Unable to save attendance.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className={`w-full max-w-5xl mx-auto px-3 sm:px-4 py-5 sm:py-8 ${bg}`}>
       <button
         onClick={() => setPage("Home")}
-        className="text-green-500 font-semibold mb-6"
+        className="text-green-600 font-semibold mb-6"
       >
         ← Back to Milk Receivers
       </button>
 
       <div className={`rounded-2xl border p-5 md:p-8 ${card}`}>
+        {/* Header */}
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
@@ -57,65 +190,69 @@ const ReceiverCalendar = ({
             </h1>
 
             <p className={muted}>Attendance Calendar</p>
+
+            <p className={`text-sm mt-1 ${muted}`}>
+              Regular milk quantity: {selectedCustomer.milk} L
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center w-full lg:w-auto">
+          {/* Month and year selection */}
+          <div className="grid grid-cols-2 sm:flex gap-2 items-center">
             <button
               onClick={() =>
                 setCalendarMonth(new Date(year, month - 1, 1))
               }
-              className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap ${button}`}
+              className={`px-3 py-2 rounded-lg text-sm ${button}`}
             >
               ← Previous
             </button>
 
-            <div className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 min-w-0">
-              <select
-                value={month}
-                onChange={(event) =>
-                  setCalendarMonth(new Date(year, Number(event.target.value), 1))
-                }
-                className="min-w-0 w-full sm:w-auto px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
-                aria-label="Select calendar month"
-              >
-                {Array.from({ length: 12 }, (_, monthIndex) => (
-                  <option key={monthIndex} value={monthIndex}>
-                    {new Date(2000, monthIndex, 1).toLocaleString("en-IN", { month: "long" })}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={month}
+              onChange={(e) =>
+                setCalendarMonth(
+                  new Date(year, Number(e.target.value), 1)
+                )
+              }
+              className="px-3 py-2 rounded-lg border bg-white text-gray-900 text-sm"
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i} value={i}>
+                  {new Date(2000, i, 1).toLocaleString("en-IN", {
+                    month: "long",
+                  })}
+                </option>
+              ))}
+            </select>
 
-              <select
-                value={year}
-                onChange={(e) =>
-                  setCalendarMonth(
-                    new Date(Number(e.target.value), month, 1)
-                  )
-                }
-                className="min-w-0 w-full sm:w-auto px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
-                aria-label="Select calendar year"
-              >
-                {Array.from({ length: 101 }, (_, i) => 2000 + i).map(
-                  (yearOption) => (
-                    <option key={yearOption} value={yearOption}>
-                      {yearOption}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+            <select
+              value={year}
+              onChange={(e) =>
+                setCalendarMonth(
+                  new Date(Number(e.target.value), month, 1)
+                )
+              }
+              className="px-3 py-2 rounded-lg border bg-white text-gray-900 text-sm"
+            >
+              {Array.from({ length: 101 }, (_, i) => 2000 + i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
 
             <button
               onClick={() =>
                 setCalendarMonth(new Date(year, month + 1, 1))
               }
-              className={`px-3 py-2 rounded-lg text-sm whitespace-nowrap ${button}`}
+              className={`px-3 py-2 rounded-lg text-sm ${button}`}
             >
               Next →
             </button>
           </div>
         </div>
 
+        {/* Attendance summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
           <div className="rounded-xl bg-green-100 text-green-800 p-4">
             <p>Present</p>
@@ -133,24 +270,31 @@ const ReceiverCalendar = ({
           </div>
         </div>
 
-        <section
-          aria-label={`${calendarMonth.toLocaleString("en-IN", { month: "long" })} ${year} attendance calendar`}
-          className="mt-6 rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm"
-        >
+        {loading && (
+          <p className="text-center text-gray-500 my-4">
+            Loading attendance...
+          </p>
+        )}
+
+        {error && !selectedDate && (
+          <p className="text-red-600 bg-red-50 rounded-lg p-3 mb-4">
+            {error}
+          </p>
+        )}
+
+        {/* Calendar */}
+        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
           <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
-            {[
-              ["Sun", "S"], ["Mon", "M"], ["Tue", "T"], ["Wed", "W"],
-              ["Thu", "T"], ["Fri", "F"], ["Sat", "S"]
-            ].map(([fullDay, shortDay]) => (
-              <div
-                key={fullDay}
-                className="py-2 text-center text-[10px] sm:text-xs font-bold uppercase tracking-wide text-gray-500"
-                title={fullDay}
-              >
-                <span className="sm:hidden">{shortDay}</span>
-                <span className="hidden sm:inline">{fullDay}</span>
-              </div>
-            ))}
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+              (day) => (
+                <div
+                  key={day}
+                  className="py-2 text-center text-[10px] sm:text-xs font-bold uppercase text-gray-500"
+                >
+                  {day}
+                </div>
+              )
+            )}
           </div>
 
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
@@ -159,75 +303,72 @@ const ReceiverCalendar = ({
                 return (
                   <div
                     key={`blank-${index}`}
-                    aria-hidden="true"
-                    className="min-h-[62px] sm:min-h-[92px] rounded-lg sm:rounded-xl border border-transparent bg-gray-50"
+                    className="min-h-[65px] sm:min-h-[95px] rounded-lg bg-gray-50"
                   />
                 );
               }
 
-              const d = new Date(year, month, day);
-              const key = dateKey(d);
-              const attendanceStatus = receiverRecords[key] || "Unmarked";
-              const isPresent = attendanceStatus === "Present";
-              const isAbsent = attendanceStatus === "Absent";
-              const isFuture = d > today;
-              const status = isPresent ? "P" : isAbsent ? "A" : "";
+              const date = new Date(year, month, day);
+              const key = dateKey(date);
+              const record = receiverRecords[key];
+
+              const isPresent = record?.status === "Present";
+              const isAbsent = record?.status === "Absent";
+              const isFuture = date > today;
 
               const isToday =
-                d.getFullYear() === today.getFullYear() &&
-                d.getMonth() === today.getMonth() &&
-                d.getDate() === today.getDate();
+                date.getFullYear() === today.getFullYear() &&
+                date.getMonth() === today.getMonth() &&
+                date.getDate() === today.getDate();
 
+              // Present = Green. Absent and Unmarked = Red.
               const tileStyle = isPresent
-                ? "border-green-300 bg-green-50 text-green-800"
-                : isAbsent
-                ? "border-red-200 bg-red-50 text-red-700"
-                : isFuture
-                ? "border-gray-100 bg-gray-50 text-gray-400"
-                : "border-gray-200 bg-white text-gray-700";
+                ? "border-green-500 bg-green-500 text-white"
+                : "border-red-500 bg-red-500 text-white";
 
               return (
                 <button
                   key={key}
                   type="button"
-                  disabled={isFuture}
-                  onClick={() => togglePresent(selectedCustomer.id, d)}
+                  disabled={isFuture || loading}
+                  onClick={() => openEditor(date)}
                   title={
                     isFuture
                       ? "Future date"
-                      : isPresent
-                      ? "Present — click to mark Absent"
-                      : isAbsent
-                      ? "Absent — click to clear"
-                      : "Unmarked — click to mark Present"
+                      : "Click to edit attendance"
                   }
-                  aria-label={`${day} ${calendarMonth.toLocaleString("en-IN", { month: "long" })}: ${
-                    isPresent ? "Present" : isAbsent ? "Absent" : "Unmarked"
-                  }`}
-                  className={`min-w-0 min-h-[62px] sm:min-h-[92px] rounded-lg sm:rounded-xl border p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 sm:gap-2 transition-all ${tileStyle} ${
+                  className={`min-w-0 min-h-[65px] sm:min-h-[95px] rounded-lg sm:rounded-xl border p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 transition-all ${tileStyle} ${
                     isToday ? "ring-2 ring-inset ring-blue-500" : ""
                   } ${
                     isFuture
                       ? "cursor-not-allowed"
-                      : "cursor-pointer hover:border-green-400 hover:shadow-sm active:scale-[0.98]"
+                      : "cursor-pointer hover:shadow-md hover:border-green-500"
                   }`}
                 >
-                  <span className={`text-xs sm:text-sm font-semibold ${
-                    isToday ? "text-blue-700" : ""
-                  }`}>
+                  <span className="text-xs sm:text-sm font-semibold">
                     {day}
                   </span>
 
-                  {status ? (
-                    <span className={`min-w-5 h-5 sm:min-w-7 sm:h-7 px-1.5 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-extrabold ${
-                      isPresent
-                        ? "bg-green-600 text-white"
-                        : "bg-red-500 text-white"
-                    }`}>
-                      {status}
+                  {isPresent && (
+                    <>
+                      <span className="w-6 h-6 rounded-full bg-green-700 text-white flex items-center justify-center text-xs font-bold">
+                        P
+                      </span>
+
+                      <span className="text-[10px] font-bold">
+                        {record.milk} L
+                      </span>
+                    </>
+                  )}
+
+                  {isAbsent && (
+                    <span className="w-6 h-6 rounded-full bg-red-700 text-white flex items-center justify-center text-xs font-bold">
+                      A
                     </span>
-                  ) : (
-                    <span className="h-5 sm:h-7" aria-hidden="true" />
+                  )}
+
+                  {!isPresent && !isAbsent && (
+                    <span className="h-6" />
                   )}
                 </button>
               );
@@ -235,28 +376,180 @@ const ReceiverCalendar = ({
           </div>
         </section>
 
-        <div className="flex flex-wrap gap-3 mt-6 text-sm">
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mt-6 text-sm">
           <span className="flex items-center gap-2">
             <span className="w-4 h-4 rounded bg-green-500 inline-block" />
-            P
+            Present
           </span>
 
           <span className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded bg-red-100 border border-red-200 inline-block" />
-            A
+            <span className="w-4 h-4 rounded bg-red-500 inline-block" />
+            Absent
           </span>
 
           <span className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded bg-gray-100 border border-gray-200 inline-block" />
+            <span className="w-4 h-4 rounded bg-red-500 inline-block" />
             Unmarked
           </span>
         </div>
 
         <p className={`mt-4 text-sm ${muted}`}>
-          Click a date to cycle through grey (unmarked), green (P), and red (A).
-          Click again after A to clear it. Future dates cannot be marked.
+          Click a date to edit its attendance. Milk quantity can be
+          customized only for the selected date.
         </p>
       </div>
+
+      {/* Date editor popup */}
+      {selectedDate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !saving) {
+              setSelectedDate(null);
+              setError("");
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attendance-editor-title"
+          >
+            <div className="flex justify-between items-start gap-3">
+              <div>
+                <h2
+                  id="attendance-editor-title"
+                  className="text-xl font-bold text-gray-900"
+                >
+                  Edit Attendance
+                </h2>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedCustomer.name}
+                </p>
+
+                <p className="text-sm font-semibold text-gray-700">
+                  {selectedDate.toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDate(null);
+                  setError("");
+                }}
+                disabled={saving}
+                className="text-gray-500 hover:text-red-600 text-2xl leading-none"
+                aria-label="Close editor"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Present / Absent selection */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-gray-800 mb-3">
+                Select Attendance
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setStatus("Present")}
+                  className={`py-3 rounded-xl border-2 font-bold transition ${
+                    status === "Present"
+                      ? "bg-green-100 border-green-500 text-green-800"
+                      : "bg-white border-gray-200 text-gray-600"
+                  }`}
+                >
+                  ✓ Present
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStatus("Absent")}
+                  className={`py-3 rounded-xl border-2 font-bold transition ${
+                    status === "Absent"
+                      ? "bg-red-100 border-red-500 text-red-800"
+                      : "bg-white border-gray-200 text-gray-600"
+                  }`}
+                >
+                  ✕ Absent
+                </button>
+              </div>
+            </div>
+
+            {/* Quantity shown only for selected date and Present */}
+            {status === "Present" && (
+              <div className="mt-5">
+                <label className="block text-sm font-semibold text-gray-800 mb-2">
+                  Milk Quantity (Litres)
+                </label>
+
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="Enter milk quantity"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+
+                <p className="text-xs text-gray-500 mt-2">
+                  Regular quantity: {selectedCustomer.milk} L.
+                  Changing this value will not change the customer's
+                  regular quantity or other dates.
+                </p>
+              </div>
+            )}
+
+            {status === "Absent" && (
+              <div className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                This customer will be marked absent. Milk quantity
+                for this date will be saved as 0 L.
+              </div>
+            )}
+
+            {error && (
+              <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+
+            {/* Save and Cancel */}
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={saveAttendance}
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDate(null);
+                  setError("");
+                }}
+                disabled={saving}
+                className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
