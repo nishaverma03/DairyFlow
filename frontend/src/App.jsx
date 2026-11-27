@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { TODAY_MILK_RATE, sampleCustomers, attendanceRecords } from "./data/dairy.js";
+import { TODAY_MILK_RATE } from "./data/dairy.js";
+import { apiRequest } from "./api/dairyApi.js";
 import { ALLOWED_USERS } from "./auth/allowedUsers.js";
+
 import Navbar from "./components/layout/Navbar.jsx";
 import Footer from "./components/layout/Footer.jsx";
 import Home from "./pages/Home.jsx";
@@ -29,26 +31,31 @@ export default function App() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [module, setModule] = useState("");
   const [search, setSearch] = useState("");
+
   const [todayMilkRate, setTodayMilkRate] = useState(() => {
     const savedRate = Number(localStorage.getItem("dairyflow_todayMilkRate"));
-    return Number.isFinite(savedRate) && savedRate >= 0
-      && localStorage.getItem("dairyflow_todayMilkRate") !== null
+
+    return (
+      Number.isFinite(savedRate) &&
+      savedRate >= 0 &&
+      localStorage.getItem("dairyflow_todayMilkRate") !== null
+    )
       ? savedRate
       : TODAY_MILK_RATE;
   });
+
   const [isEditingMilkRate, setIsEditingMilkRate] = useState(false);
+
   const [milkRateInput, setMilkRateInput] = useState(() => {
     const savedRate = localStorage.getItem("dairyflow_todayMilkRate");
     return savedRate !== null ? savedRate : String(TODAY_MILK_RATE);
   });
-  const [customers, setCustomers] = useState(() => {
-    try {
-      const saved = localStorage.getItem("dairyflow_customers");
-      return saved ? JSON.parse(saved) : sampleCustomers;
-    } catch {
-      return sampleCustomers;
-    }
-  });
+
+  // Customers now come from the backend database
+  const [customers, setCustomers] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [customerError, setCustomerError] = useState("");
+
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerMilk, setNewCustomerMilk] = useState("1");
@@ -57,6 +64,7 @@ export default function App() {
     new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
 
+  // Attendance is temporarily retained in local storage
   const [calendarAttendance, setCalendarAttendance] = useState(() => {
     try {
       return JSON.parse(
@@ -67,88 +75,37 @@ export default function App() {
     }
   });
 
+  // LOAD CUSTOMERS FROM BACKEND
   useEffect(() => {
-    localStorage.setItem("dairyflow_customers", JSON.stringify(customers));
-  }, [customers]);
+    const fetchCustomers = async () => {
+      try {
+        setLoadingCustomers(true);
+        setCustomerError("");
 
+        const data = await apiRequest("/api/customers");
+        setCustomers(data);
+      } catch (error) {
+        console.error("Failed to load customers:", error);
+        setCustomerError(
+          error.message || "Failed to load customers from the server."
+        );
+      } finally {
+        setLoadingCustomers(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // SAVE MILK RATE
   useEffect(() => {
-    localStorage.setItem("dairyflow_todayMilkRate", String(todayMilkRate));
+    localStorage.setItem(
+      "dairyflow_todayMilkRate",
+      String(todayMilkRate)
+    );
   }, [todayMilkRate]);
 
-  const saveTodayMilkRate = (event) => {
-    event.preventDefault();
-    const nextRate = Number(milkRateInput);
-    if (!Number.isFinite(nextRate) || nextRate < 0 || milkRateInput.trim() === "") {
-      alert("Please enter a valid non-negative milk price.");
-      return;
-    }
-    setTodayMilkRate(nextRate);
-    setMilkRateInput(String(nextRate));
-    setIsEditingMilkRate(false);
-  };
-
-  const addCustomer = (event) => {
-    event.preventDefault();
-    const name = newCustomerName.trim();
-    const phone = newCustomerPhone.trim();
-
-    if (!name || !phone) {
-      alert("Please enter the customer name and phone number.");
-      return;
-    }
-    if (!/^\d{10}$/.test(phone)) {
-      alert("Please enter a valid 10-digit phone number.");
-      return;
-    }
-    if (customers.some((customer) => customer.phone === phone)) {
-      alert("A customer with this phone number already exists.");
-      return;
-    }
-
-    const milk = Number(newCustomerMilk);
-    const rate = todayMilkRate;
-    if (!Number.isFinite(milk) || milk <= 0) {
-      alert("Please enter a valid milk quantity greater than 0.");
-      return;
-    }
-
-    const nextId = Math.max(0, ...customers.map((customer) => customer.id)) + 1;
-    setCustomers((current) => [
-      ...current,
-      { id: nextId, name, phone, milk, rate },
-    ]);
-    setNewCustomerName("");
-    setNewCustomerPhone("");
-    setNewCustomerMilk("1");
-  };
-
-  const removeCustomer = (customerId) => {
-    const customer = customers.find((item) => item.id === customerId);
-    if (!customer) return;
-    if (!window.confirm(`Remove ${customer.name} from Milk Receivers?`)) return;
-
-    setCustomers((current) => current.filter((item) => item.id !== customerId));
-    setCalendarAttendance((current) => {
-      const next = { ...current };
-      delete next[customerId];
-      return next;
-    });
-    if (selectedCustomer?.id === customerId) {
-      setSelectedCustomer(null);
-      setPage("Home");
-      setModule("");
-    }
-  };
-
-  const getAttendanceRecords = (customerId) => {
-    const originalIndex = sampleCustomers.findIndex(
-      (customer) => customer.id === customerId
-    );
-    return originalIndex >= 0
-      ? attendanceRecords[originalIndex]
-      : ["Absent", "Absent", "Absent", "Absent", "Absent"];
-  };
-
+  // SAVE ATTENDANCE
   useEffect(() => {
     localStorage.setItem(
       "dairyflow_calendarAttendance",
@@ -156,12 +113,149 @@ export default function App() {
     );
   }, [calendarAttendance]);
 
+  const saveTodayMilkRate = (event) => {
+    event.preventDefault();
+
+    const nextRate = Number(milkRateInput);
+
+    if (
+      !Number.isFinite(nextRate) ||
+      nextRate < 0 ||
+      milkRateInput.trim() === ""
+    ) {
+      alert("Please enter a valid non-negative milk price.");
+      return;
+    }
+
+    setTodayMilkRate(nextRate);
+    setMilkRateInput(String(nextRate));
+    setIsEditingMilkRate(false);
+  };
+
+  // ADD CUSTOMER TO DATABASE
+  const addCustomer = async (event) => {
+    event.preventDefault();
+
+    const name = newCustomerName.trim();
+    const phone = newCustomerPhone.trim();
+
+    if (!name || !phone) {
+      alert("Please enter the customer name and phone number.");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    if (customers.some((customer) => customer.phone === phone)) {
+      alert("A customer with this phone number already exists.");
+      return;
+    }
+
+    const milk = Number(newCustomerMilk);
+    const rate = todayMilkRate;
+
+    if (!Number.isFinite(milk) || milk <= 0) {
+      alert("Please enter a valid milk quantity greater than 0.");
+      return;
+    }
+
+    try {
+      const createdCustomer = await apiRequest("/api/customers", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          phone,
+          milk,
+          rate,
+        }),
+      });
+
+      setCustomers((current) => [...current, createdCustomer]);
+
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerMilk("1");
+    } catch (error) {
+      console.error("Failed to add customer:", error);
+      alert(error.message || "Failed to add customer.");
+    }
+  };
+
+  // DELETE CUSTOMER FROM DATABASE
+  const removeCustomer = async (customerId) => {
+    const customer = customers.find(
+      (item) => item.id === customerId
+    );
+
+    if (!customer) return;
+
+    if (
+      !window.confirm(
+        `Remove ${customer.name} from Milk Receivers?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/customers/${customerId}`, {
+        method: "DELETE",
+      });
+
+      setCustomers((current) =>
+        current.filter((item) => item.id !== customerId)
+      );
+
+      setCalendarAttendance((current) => {
+        const next = { ...current };
+        delete next[customerId];
+        return next;
+      });
+
+      if (selectedCustomer?.id === customerId) {
+        setSelectedCustomer(null);
+        setPage("Home");
+        setModule("");
+      }
+    } catch (error) {
+      console.error("Failed to remove customer:", error);
+      alert(error.message || "Failed to remove customer.");
+    }
+  };
+
+  // GET ATTENDANCE RECORDS
+  const getAttendanceRecords = (customerId) => {
+    const customerAttendance = calendarAttendance[customerId] || {};
+
+    const today = new Date();
+    const records = [];
+
+    // Return the last five days of attendance
+    for (let i = 4; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+
+      const key = dateKey(date);
+      records.push(customerAttendance[key] || "Absent");
+    }
+
+    return records;
+  };
 
   const openCalendar = (customer) => {
     setSelectedCustomer(customer);
+
     setCalendarMonth(
-      new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        1
+      )
     );
+
     setPage("ReceiverCalendar");
     setModule("");
   };
@@ -170,9 +264,11 @@ export default function App() {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
+
     return `${y}-${m}-${d}`;
   };
 
+  // TOGGLE ATTENDANCE
   const togglePresent = (customerId, date) => {
     const key = dateKey(date);
 
@@ -182,7 +278,9 @@ export default function App() {
       const currentStatus = next[customerId]?.[key];
 
       // Cycle: Unmarked -> Present -> Absent -> Unmarked
-      next[customerId] = { ...(next[customerId] || {}) };
+      next[customerId] = {
+        ...(next[customerId] || {}),
+      };
 
       if (!currentStatus) {
         next[customerId][key] = "Present";
@@ -192,7 +290,7 @@ export default function App() {
         delete next[customerId][key];
       }
 
-      // Keep the customer entry tidy when every date is unmarked.
+      // Remove empty customer attendance object
       if (Object.keys(next[customerId]).length === 0) {
         delete next[customerId];
       }
@@ -216,7 +314,8 @@ export default function App() {
   );
 
   const [milkNotifications, setMilkNotifications] = useState(true);
-  const [attendanceNotifications, setAttendanceNotifications] = useState(true);
+  const [attendanceNotifications, setAttendanceNotifications] =
+    useState(true);
   const [paymentNotifications, setPaymentNotifications] = useState(true);
 
   const [defaultUnit, setDefaultUnit] = useState("Litres (L)");
@@ -271,6 +370,7 @@ export default function App() {
     setPage("Home");
     setSelectedCustomer(null);
     setModule("");
+
     localStorage.removeItem("dairyflowLoggedIn");
     localStorage.removeItem("dairyflow_currentUser");
   };
@@ -282,16 +382,20 @@ export default function App() {
   );
 
   const totalMilk = customers.reduce(
-    (sum, customer) => sum + customer.milk,
+    (sum, customer) => sum + Number(customer.milk || 0),
     0
   );
 
   const totalAmount = customers.reduce(
-    (sum, customer) => sum + customer.milk * customer.rate,
+    (sum, customer) =>
+      sum + Number(customer.milk || 0) * Number(customer.rate || 0),
     0
   );
 
-  const reportAttendance = customers.flatMap(customer => getAttendanceRecords(customer.id));
+  const reportAttendance = customers.flatMap((customer) =>
+    getAttendanceRecords(customer.id)
+  );
+
   const totalPresent = reportAttendance.filter(
     (status) => status === "Present"
   ).length;
@@ -316,11 +420,11 @@ export default function App() {
     ? "bg-gray-800 hover:bg-gray-700 text-white"
     : "bg-green-100 hover:bg-green-200 text-green-800";
 
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [page, loggedIn]);
 
+  // LOGIN SCREEN
   if (!loggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 via-white to-emerald-200 px-4 py-10">
@@ -344,6 +448,7 @@ export default function App() {
               e.preventDefault();
 
               const normalizedEmail = email.trim().toLowerCase();
+
               const matchedUser = ALLOWED_USERS.find(
                 (user) =>
                   user.email.toLowerCase() === normalizedEmail &&
@@ -351,12 +456,17 @@ export default function App() {
               );
 
               if (!matchedUser) {
-                alert("Invalid email or password. Please use an authorized DairyFlow account.");
+                alert(
+                  "Invalid email or password. Please use an authorized DairyFlow account."
+                );
                 return;
               }
 
-              // Only an email/password pair listed in ALLOWED_USERS can sign in.
-              localStorage.setItem("dairyflow_currentUser", matchedUser.email);
+              localStorage.setItem(
+                "dairyflow_currentUser",
+                matchedUser.email
+              );
+
               setLoggedIn(true);
               setPage("Home");
             }}
@@ -413,21 +523,23 @@ export default function App() {
     );
   }
 
-
-
+  // MAIN APPLICATION
   return (
-    <div className={`df-shell w-full min-w-0 min-h-screen overflow-x-hidden flex flex-col transition-colors duration-300 ${bg}`}>
-      {<Navbar
-          dark={dark}
-          page={page}
-          setPage={setPage}
-          goHome={goHome}
-          logout={logout}
-          button={button}
-        />}
+    <div
+      className={`df-shell w-full min-w-0 min-h-screen overflow-x-hidden flex flex-col transition-colors duration-300 ${bg}`}
+    >
+      <Navbar
+        dark={dark}
+        page={page}
+        setPage={setPage}
+        goHome={goHome}
+        logout={logout}
+        button={button}
+      />
 
       <main key={page} className="df-screen w-full min-w-0 flex-1">
-        {page === "Home" && <Home
+        {page === "Home" && (
+          <Home
             dark={dark}
             setPage={setPage}
             search={search}
@@ -447,9 +559,11 @@ export default function App() {
             card={card}
             muted={muted}
             button={button}
-          />}
+          />
+        )}
 
-        {page === "Administration" && <AdministrationPage
+        {page === "Administration" && (
+          <AdministrationPage
             setPage={setPage}
             customers={customers}
             totalMilk={totalMilk}
@@ -459,9 +573,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "AdminReceivers" && <AdminReceivers
+        {page === "AdminReceivers" && (
+          <AdminReceivers
             dark={dark}
             setPage={setPage}
             todayMilkRate={todayMilkRate}
@@ -477,9 +593,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "AdminAttendance" && <AdminAttendance
+        {page === "AdminAttendance" && (
+          <AdminAttendance
             dark={dark}
             setPage={setPage}
             customers={customers}
@@ -489,9 +607,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "AdminPayments" && <AdminPayments
+        {page === "AdminPayments" && (
+          <AdminPayments
             dark={dark}
             setPage={setPage}
             customers={customers}
@@ -499,9 +619,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "AdminReports" && <AdminReports
+        {page === "AdminReports" && (
+          <AdminReports
             calendarAttendance={calendarAttendance}
             getAttendanceRecords={getAttendanceRecords}
             setPage={setPage}
@@ -513,9 +635,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "Menu" && <MenuPage
+        {page === "Menu" && (
+          <MenuPage
             setPage={setPage}
             setSelectedCustomer={setSelectedCustomer}
             setModule={setModule}
@@ -523,9 +647,11 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "Settings" && <SettingsPage
+        {page === "Settings" && (
+          <SettingsPage
             dark={dark}
             setDark={setDark}
             managerName={managerName}
@@ -549,14 +675,18 @@ export default function App() {
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
-        {page === "Contact" && <ContactPage customers={customers}
+        {page === "Contact" && (
+          <ContactPage
+            customers={customers}
             goHome={goHome}
             bg={bg}
             card={card}
             muted={muted}
-          />}
+          />
+        )}
 
         {page === "CustomerProfile" && selectedCustomer && (
           <CustomerProfile
@@ -601,8 +731,7 @@ export default function App() {
         )}
       </main>
 
-      {<Footer
-        />}
+      <Footer />
     </div>
   );
 }
