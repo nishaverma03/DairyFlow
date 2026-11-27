@@ -64,8 +64,8 @@ const AdminReceivers = ({
           <label className="block text-sm font-semibold mb-2">Daily Milk (L)</label>
           <input
             type="number"
-            min="0.1"
-            step="0.1"
+            min="0.001"
+            step="any"
             value={newCustomerMilk}
             onChange={(event) => setNewCustomerMilk(event.target.value)}
             className="w-full px-4 py-3 rounded-xl border border-green-200 bg-white text-gray-900"
@@ -74,9 +74,8 @@ const AdminReceivers = ({
         </div>
       </div>
 
-      <div className={`mt-5 rounded-xl border p-4 ${
-        dark ? "border-green-900 bg-gray-800" : "border-green-100 bg-green-50"
-      }`}>
+      <div className={`mt-5 rounded-xl border p-4 ${dark ? "border-green-900 bg-gray-800" : "border-green-100 bg-green-50"
+        }`}>
         <p className="text-sm font-semibold text-green-700">Today's milk price (automatic)</p>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
