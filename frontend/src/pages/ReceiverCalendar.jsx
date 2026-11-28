@@ -15,6 +15,7 @@ const ReceiverCalendar = ({
 }) => {
   const year = calendarMonth.getFullYear();
   const month = calendarMonth.getMonth();
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
 
@@ -29,7 +30,7 @@ const ReceiverCalendar = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Load saved attendance from backend.
+  // Load attendance from backend
   useEffect(() => {
     let cancelled = false;
 
@@ -50,6 +51,7 @@ const ReceiverCalendar = ({
 
         attendanceList.forEach((record) => {
           const day = String(record.day).padStart(2, "0");
+
           const key = `${year}-${String(month + 1).padStart(2, "0")}-${day}`;
 
           nextRecords[key] = {
@@ -82,7 +84,7 @@ const ReceiverCalendar = ({
 
   const receiverRecords = records;
 
-  // Attendance counts.
+  // Attendance counts
   let presentCount = 0;
   let absentCount = 0;
   let unmarkedCount = 0;
@@ -91,19 +93,31 @@ const ReceiverCalendar = ({
     const key = dateKey(new Date(year, month, day));
     const record = receiverRecords[key];
 
-    if (record?.status === "Present") presentCount++;
-    else if (record?.status === "Absent") absentCount++;
-    else unmarkedCount++;
+    if (record?.status === "Present") {
+      presentCount++;
+    } else if (record?.status === "Absent") {
+      absentCount++;
+    } else {
+      unmarkedCount++;
+    }
   }
 
-  // Calendar cells.
+  // Calendar cells
   const cells = [];
 
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push(day);
-  while (cells.length % 7 !== 0) cells.push(null);
+  for (let i = 0; i < firstDay; i++) {
+    cells.push(null);
+  }
 
-  // Open editor only when a date is clicked.
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push(day);
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  // Open attendance editor
   const openEditor = (date) => {
     const key = dateKey(date);
     const existing = receiverRecords[key];
@@ -122,7 +136,7 @@ const ReceiverCalendar = ({
     setError("");
   };
 
-  // Save attendance and daily milk quantity.
+  // Save attendance
   const saveAttendance = async () => {
     if (!selectedDate) return;
 
@@ -174,6 +188,8 @@ const ReceiverCalendar = ({
 
   return (
     <div className={`w-full max-w-5xl mx-auto px-3 sm:px-4 py-5 sm:py-8 ${bg}`}>
+
+      {/* Back Button */}
       <button
         onClick={() => setPage("Home")}
         className="text-green-600 font-semibold mb-6"
@@ -182,8 +198,10 @@ const ReceiverCalendar = ({
       </button>
 
       <div className={`rounded-2xl border p-5 md:p-8 ${card}`}>
+
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">
               {selectedCustomer.name}
@@ -196,8 +214,9 @@ const ReceiverCalendar = ({
             </p>
           </div>
 
-          {/* Month and year selection */}
+          {/* Month and Year Selection */}
           <div className="grid grid-cols-2 sm:flex gap-2 items-center">
+
             <button
               onClick={() =>
                 setCalendarMonth(new Date(year, month - 1, 1))
@@ -252,8 +271,9 @@ const ReceiverCalendar = ({
           </div>
         </div>
 
-        {/* Attendance summary */}
+        {/* Attendance Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
+
           <div className="rounded-xl bg-green-100 text-green-800 p-4">
             <p>Present</p>
             <h3 className="text-2xl font-bold">{presentCount}</h3>
@@ -265,9 +285,10 @@ const ReceiverCalendar = ({
           </div>
 
           <div className="rounded-xl bg-gray-100 text-gray-700 p-4">
-            <p>Not marked / Future</p>
+            <p>Not Marked</p>
             <h3 className="text-2xl font-bold">{unmarkedCount}</h3>
           </div>
+
         </div>
 
         {loading && (
@@ -284,6 +305,8 @@ const ReceiverCalendar = ({
 
         {/* Calendar */}
         <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-2 sm:p-4 shadow-sm">
+
+          {/* Week Days */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
               (day) => (
@@ -297,7 +320,9 @@ const ReceiverCalendar = ({
             )}
           </div>
 
+          {/* Calendar Dates */}
           <div className="grid grid-cols-7 gap-1 sm:gap-2">
+
             {cells.map((day, index) => {
               if (!day) {
                 return (
@@ -321,10 +346,12 @@ const ReceiverCalendar = ({
                 date.getMonth() === today.getMonth() &&
                 date.getDate() === today.getDate();
 
-              // Present = Green. Absent and Unmarked = Red.
+              // Calendar Colors
               const tileStyle = isPresent
                 ? "border-green-500 bg-green-500 text-white"
-                : "border-red-500 bg-red-500 text-white";
+                : isAbsent
+                ? "border-red-500 bg-red-500 text-white"
+                : "border-gray-200 bg-white text-gray-800 hover:bg-gray-50";
 
               return (
                 <button
@@ -337,14 +364,21 @@ const ReceiverCalendar = ({
                       ? "Future date"
                       : "Click to edit attendance"
                   }
-                  className={`min-w-0 min-h-[65px] sm:min-h-[95px] rounded-lg sm:rounded-xl border p-1.5 sm:p-2 flex flex-col items-center justify-center gap-1 transition-all ${tileStyle} ${
-                    isToday ? "ring-2 ring-inset ring-blue-500" : ""
-                  } ${
-                    isFuture
-                      ? "cursor-not-allowed"
-                      : "cursor-pointer hover:shadow-md hover:border-green-500"
-                  }`}
+                  className={`
+                    min-w-0 min-h-[65px] sm:min-h-[95px]
+                    rounded-lg sm:rounded-xl border p-1.5 sm:p-2
+                    flex flex-col items-center justify-center gap-1
+                    transition-all
+                    ${tileStyle}
+                    ${isToday ? "ring-2 ring-inset ring-blue-500" : ""}
+                    ${
+                      isFuture
+                        ? "cursor-not-allowed opacity-70"
+                        : "cursor-pointer hover:shadow-md hover:border-blue-400"
+                    }
+                  `}
                 >
+
                   <span className="text-xs sm:text-sm font-semibold">
                     {day}
                   </span>
@@ -370,14 +404,22 @@ const ReceiverCalendar = ({
                   {!isPresent && !isAbsent && (
                     <span className="h-6" />
                   )}
+
                 </button>
               );
             })}
+
           </div>
         </section>
 
         {/* Legend */}
         <div className="flex flex-wrap gap-4 mt-6 text-sm">
+
+          <span className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded bg-white border border-gray-300 inline-block" />
+            Not Marked
+          </span>
+
           <span className="flex items-center gap-2">
             <span className="w-4 h-4 rounded bg-green-500 inline-block" />
             Present
@@ -388,19 +430,16 @@ const ReceiverCalendar = ({
             Absent
           </span>
 
-          <span className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded bg-red-500 inline-block" />
-            Unmarked
-          </span>
         </div>
 
         <p className={`mt-4 text-sm ${muted}`}>
           Click a date to edit its attendance. Milk quantity can be
           customized only for the selected date.
         </p>
+
       </div>
 
-      {/* Date editor popup */}
+      {/* Attendance Editor Popup */}
       {selectedDate && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -411,13 +450,17 @@ const ReceiverCalendar = ({
             }
           }}
         >
+
           <div
             className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="attendance-editor-title"
           >
+
+            {/* Popup Header */}
             <div className="flex justify-between items-start gap-3">
+
               <div>
                 <h2
                   id="attendance-editor-title"
@@ -451,15 +494,18 @@ const ReceiverCalendar = ({
               >
                 ×
               </button>
+
             </div>
 
-            {/* Present / Absent selection */}
+            {/* Present / Absent Selection */}
             <div className="mt-6">
+
               <label className="block text-sm font-semibold text-gray-800 mb-3">
                 Select Attendance
               </label>
 
               <div className="grid grid-cols-2 gap-3">
+
                 <button
                   type="button"
                   onClick={() => setStatus("Present")}
@@ -483,12 +529,14 @@ const ReceiverCalendar = ({
                 >
                   ✕ Absent
                 </button>
+
               </div>
             </div>
 
-            {/* Quantity shown only for selected date and Present */}
+            {/* Milk Quantity */}
             {status === "Present" && (
               <div className="mt-5">
+
                 <label className="block text-sm font-semibold text-gray-800 mb-2">
                   Milk Quantity (Litres)
                 </label>
@@ -508,9 +556,11 @@ const ReceiverCalendar = ({
                   Changing this value will not change the customer's
                   regular quantity or other dates.
                 </p>
+
               </div>
             )}
 
+            {/* Absent Information */}
             {status === "Absent" && (
               <div className="mt-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                 This customer will be marked absent. Milk quantity
@@ -518,14 +568,16 @@ const ReceiverCalendar = ({
               </div>
             )}
 
+            {/* Error */}
             {error && (
               <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
                 {error}
               </p>
             )}
 
-            {/* Save and Cancel */}
+            {/* Save / Cancel */}
             <div className="flex gap-3 mt-6">
+
               <button
                 type="button"
                 onClick={saveAttendance}
@@ -546,10 +598,13 @@ const ReceiverCalendar = ({
               >
                 Cancel
               </button>
+
             </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 };
